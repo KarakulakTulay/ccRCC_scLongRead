@@ -924,9 +924,7 @@ ORF_ccRCC2_seurat_iupred_sub,
 ORF_normal_seurat_iupred_sub
 )
 
-
 figure2e <- ggplot(ORF_iupred_subNNIC_NIC, aes(y=Disordered, x=subcategory)) + geom_boxplot() + theme_bw() + facet_wrap(~Group, scales = 'free_x') + theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 1))
-
 ggsave("Figure2E.png", plot = figure2e, bg = "transparent", width = 4, height = 5)
 ```
 
