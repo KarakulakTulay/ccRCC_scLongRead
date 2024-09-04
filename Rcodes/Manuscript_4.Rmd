@@ -1,11 +1,15 @@
 ---
-title: "Figure4"
+title: "Manuscript_4"
 author: "Tülay Karakulak"
-date: "2024-03-15"
+date: "2024-09-03"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
+Codes to generate Figure 4A-C and Figure Supplementary 3
 ```{r libraries}
 library(dplyr)
 library(ggplot2)
@@ -24,117 +28,52 @@ set.seed(12345)
 
 ```{r ReadIds}
 IsoMatch_All <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/TamaIDs/PbIds_TamaIds.tsv', sep=' ', header=FALSE)
-head(IsoMatch_All)
-```
-
-
-```{r Unnest}
-library(tidyr)
 colnames(IsoMatch_All) <- c('TamaID', 'Sample', 'PBid')
 head(IsoMatch_All)
 ```
 
 
 ```{r mergeAnnotations}
-isoform_annotations_normal <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/Normal/scisoseq_classification.filtered_lite_classification.txt', header = TRUE, sep='\t')
-# ccRCC_2
-isoform_annotations_ccRCC_2 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC2/scisoseq_classification.filtered_lite_classification.txt', header = TRUE, sep='\t')
-# ccRCC_3
-isoform_annotations_ccRCC_3 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC3/scisoseq_classification.filtered_lite_classification.txt', header = TRUE, sep='\t')
+isoform_annotations_normal_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_normal_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_2_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_2_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_3_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_3_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_4_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_4_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_5_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotation#isoform_annotations_ccRCC_5_filtered_w_CellNumber.RDS')
 
-isoform_annotations_ccRCC_4 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC4/scisoseq_classification.filtered_lite_classification.txt', header = TRUE, sep='\t')
-
-isoform_annotations_ccRCC_5 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC5/scisoseq_classification.filtered_lite_classification.txt', header = TRUE, sep='\t')
-
-isoform_annotations_normal_tama <- merge(isoform_annotations_normal, IsoMatch_All[IsoMatch_All$Sample == 'Normal',], by.x = 'isoform', by.y='PBid')
-isoform_annotations_ccRCC2_tama <- merge(isoform_annotations_ccRCC_2, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC2',], by.x = 'isoform', by.y='PBid')
-isoform_annotations_ccRCC3_tama <- merge(isoform_annotations_ccRCC_3, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC3',], by.x = 'isoform', by.y='PBid')
-isoform_annotations_ccRCC4_tama <- merge(isoform_annotations_ccRCC_4, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC4',], by.x = 'isoform', by.y='PBid')
-isoform_annotations_ccRCC5_tama <- merge(isoform_annotations_ccRCC_5, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC5',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_normal_tama <- merge(isoform_annotations_normal_filtered, IsoMatch_All[IsoMatch_All$Sample == 'Normal',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC2_tama <- merge(isoform_annotations_ccRCC_2_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC2',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC3_tama <- merge(isoform_annotations_ccRCC_3_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC3',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC4_tama <- merge(isoform_annotations_ccRCC_4_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC4',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC5_tama <- merge(isoform_annotations_ccRCC_5_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC5',], by.x = 'isoform', by.y='PBid')
 ```
 
-
-## Check the transcripts found in more than 3 cells
-```{r countCells}
-isoform_annotations_normal_tama$number_of_Cellbarcodes <- sapply(strsplit(isoform_annotations_normal_tama$cell_barcodes, ","), length)
-isoform_annotations_ccRCC2_tama$number_of_Cellbarcodes <- sapply(strsplit(isoform_annotations_ccRCC2_tama$cell_barcodes, ","), length)
-isoform_annotations_ccRCC3_tama$number_of_Cellbarcodes <- sapply(strsplit(isoform_annotations_ccRCC3_tama$cell_barcodes, ","), length)
-isoform_annotations_ccRCC4_tama$number_of_Cellbarcodes <- sapply(strsplit(isoform_annotations_ccRCC4_tama$cell_barcodes, ","), length)
-isoform_annotations_ccRCC5_tama$number_of_Cellbarcodes <- sapply(strsplit(isoform_annotations_ccRCC5_tama$cell_barcodes, ","), length)
-```
 
 
 ```{r NumberOfMatchingIsoforms2}
-#UpsetPlot
-isoform_annotations_normal_tama_3cells <- isoform_annotations_normal_tama[isoform_annotations_normal_tama$number_of_Cellbarcodes >= 3, ]
-isoform_annotations_ccRCC2_tama_3cells <- isoform_annotations_ccRCC2_tama[isoform_annotations_ccRCC2_tama$number_of_Cellbarcodes >= 3, ]
-isoform_annotations_ccRCC3_tama_3cells <- isoform_annotations_ccRCC3_tama[isoform_annotations_ccRCC3_tama$number_of_Cellbarcodes >= 3, ]
-isoform_annotations_ccRCC4_tama_3cells <- isoform_annotations_ccRCC4_tama[isoform_annotations_ccRCC4_tama$number_of_Cellbarcodes >= 3, ]
-isoform_annotations_ccRCC5_tama_3cells <- isoform_annotations_ccRCC5_tama[isoform_annotations_ccRCC5_tama$number_of_Cellbarcodes >= 3, ]
-
 library(UpSetR)
-IsoformIds_list_samples2 <- list(Normal = unique(isoform_annotations_normal_tama_3cells$TamaID), ccRCC2 = unique(isoform_annotations_ccRCC2_tama_3cells$TamaID), ccRCC3 = unique(isoform_annotations_ccRCC3_tama_3cells$TamaID), ccRCC4 = unique(isoform_annotations_ccRCC4_tama_3cells$TamaID), ccRCC5 = unique(isoform_annotations_ccRCC5_tama_3cells$TamaID))
+IsoformIds_list_samples2 <- list(Normal = unique(isoform_annotations_normal_tama$TamaID), ccRCC2 = unique(isoform_annotations_ccRCC2_tama$TamaID), ccRCC3 = unique(isoform_annotations_ccRCC3_tama$TamaID), ccRCC4 = unique(isoform_annotations_ccRCC4_tama$TamaID), ccRCC5 = unique(isoform_annotations_ccRCC5_tama$TamaID))
 
 IsoformMatching2 <- upset(fromList(IsoformIds_list_samples2), order.by = 'freq', nsets = 6, number.angles = 45, point.size = 3.5, line.size = 2, mainbar.y.label = "# Isoforms", sets.x.label = "Number of Isoforms", text.scale = 2)
 
 IsoformMatching2
 
-png("Figure4A.png", width = 16 * 300, height = 10 * 300, res = 300, bg = "transparent")
+library(ggVennDiagram)
+
+ggVennDiagram(IsoformIds_list_samples2) + scale_fill_gradient(low = "grey", high='darkred')
+
+png("Figure4A.png", width = 20 * 300, height = 10 * 300, res = 300, bg = "transparent")
 print(IsoformMatching2)
-dev
+dev.off()
 ```
-sample2_4_5 <- intersect(intersect(isoform_annotations_ccRCC4_tama_3cells$TamaID, isoform_annotations_ccRCC5_tama_3cells$TamaID), isoform_annotations_ccRCC2_tama_3cells$TamaID)
-
-sample2_4_5_uniq <- sample2_4_5[!sample2_4_5 %in% isoform_annotations_normal_tama_3cells$TamaID & !sample2_4_5 %in% isoform_annotations_ccRCC3_tama_3cells$TamaID] 
-
-length(unique(isoform_annotations_ccRCC2_tama_3cells[isoform_annotations_ccRCC2_tama_3cells$TamaID %in% sample2_4_5_uniq, 'associated_gene']))
-# novels
-isoform_annotations_ccRCC2_tama_3cells[isoform_annotations_ccRCC2_tama_3cells$TamaID %in% sample2_4_5_uniq & isoform_annotations_ccRCC2_tama_3cells$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'), ]
 
 
 ```{r readIsoforms}
-ccRCC_Marker_Annotations <- read.table( '/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/CellTypes/ccRCC_CellType.tsv', sep='\t', header = TRUE)
+ccRCC_Marker_Annotations <- read.table( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/ccRCC_CellType_Revised.tsv', sep='\t', header = TRUE)
 ccRCC_Marker_Annotations$BC <- sapply(strsplit(ccRCC_Marker_Annotations$CellBarcode, "-"), function(x) x[1])
-
 head(ccRCC_Marker_Annotations)
 ```
 
-```{r readSeuratFiles}
-seurat_annotations_ccRCC_2 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC2/scisoseq.seurat_info/scisoseq.annotated.info.csv', header = TRUE, sep='\t')
 
-seurat_annotations_ccRCC_4 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC4/scisoseq.seurat_info/scisoseq.annotated.info.csv', header = TRUE, sep='\t')
-
-seurat_annotations_ccRCC_5 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC5/scisoseq.seurat_info/scisoseq.annotated.info.csv', header = TRUE, sep='\t')
-
-seurat_annotations_normal <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/Normal/scisoseq.seurat_info/scisoseq.annotated.info.csv', header = TRUE, sep='\t')
-
-seurat_annotations_ccRCC3 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC3/scisoseq.seurat_info/scisoseq.annotated.info.csv', header = TRUE, sep='\t')
-
-# assign Cells
-seurat_annotations_ccRCC_2$Status <- ifelse(seurat_annotations_ccRCC_2$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC2' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
-
-seurat_annotations_ccRCC_4$Status <- ifelse(seurat_annotations_ccRCC_4$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC4' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
-
-seurat_annotations_ccRCC_4 <- seurat_annotations_ccRCC_4[seurat_annotations_ccRCC_4$BC %in% ccRCC_Marker_Annotations$BC, ]
-
-seurat_annotations_ccRCC_5$Status <- ifelse(seurat_annotations_ccRCC_5$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC5' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
-
-seurat_annotations_ccRCC3$Status <- 'non-ccRCC' 
-seurat_annotations_normal$Status <- 'non-ccRCC' 
-```
-
-```{r mergeTama}
-seurat_annotations_ccRCC_2_tama <- merge(isoform_annotations_ccRCC2_tama_3cells[,c(1,5,6,7,8,15,50,51,52)], seurat_annotations_ccRCC_2, by.y = 'pbid', by.x = 'isoform')
-
-seurat_annotations_ccRCC_4_tama <- merge(isoform_annotations_ccRCC4_tama_3cells[,c(1,5,6,7,8,15,50,51,52)], seurat_annotations_ccRCC_4, by.y = 'pbid', by.x = 'isoform')
-
-seurat_annotations_ccRCC_5_tama <- merge(isoform_annotations_ccRCC5_tama_3cells[,c(1,5,6,7,8,15,50,51,52)], seurat_annotations_ccRCC_5, by.y = 'pbid', by.x = 'isoform')
-
-seurat_annotations_ccRCC_3_tama <- merge(isoform_annotations_ccRCC3_tama_3cells[,c(1,5,6,7,8,15,50,51,52)], seurat_annotations_ccRCC3, by.y = 'pbid', by.x = 'isoform')
-
-seurat_annotations_normal_tama <- merge(isoform_annotations_normal_tama_3cells[,c(1,5,6,7,8,15,50,51,52)], seurat_annotations_normal, by.y = 'pbid', by.x = 'isoform')
-
-```
 length(unique(c(seurat_annotations_normal_tama$TamaID, seurat_annotations_ccRCC_2_tama$TamaID, seurat_annotations_ccRCC_4_tama$TamaID, seurat_annotations_ccRCC_5_tama$TamaID, seurat_annotations_ccRCC_3_tama$TamaID)))
 [1] 311586
 
@@ -142,42 +81,13 @@ length(unique(c(seurat_annotations_normal_tama[seurat_annotations_normal_tama$st
 [1] 83009
 
 %26 are novel
-## Supplementary Fig 6
-```{r SplitbyCA9PosAndNeg}
-IsoformIds_CA9Pos_Neg <- list(NonccRCC = unique(c(seurat_annotations_normal_tama$TamaID, seurat_annotations_ccRCC_3_tama$TamaID, seurat_annotations_ccRCC_2_tama[seurat_annotations_ccRCC_2_tama$Status == 'non-ccRCC', 'TamaID'], seurat_annotations_ccRCC_4_tama[seurat_annotations_ccRCC_4_tama$Status == 'non-ccRCC', 'TamaID'], 
-seurat_annotations_ccRCC_5_tama[seurat_annotations_ccRCC_5_tama$Status == 'non-ccRCC', 'TamaID'])),
-ccRCC = unique(c(seurat_annotations_ccRCC_2_tama[seurat_annotations_ccRCC_2_tama$Status == 'ccRCC', 'TamaID'], seurat_annotations_ccRCC_4_tama[seurat_annotations_ccRCC_4_tama$Status == 'ccRCC', 'TamaID'], 
-seurat_annotations_ccRCC_5_tama[seurat_annotations_ccRCC_5_tama$Status == 'ccRCC', 'TamaID'])))
 
-ggVennDiagram(IsoformIds_CA9Pos_Neg, label_alpha = 0) + scale_fill_gradient(low="grey90",high = "red")
-
-
-IsoformIds_CA9Pos_Neg2 <- list(
-  Normal = unique(seurat_annotations_normal_tama$TamaID), 
-ccRCC3 = unique(seurat_annotations_ccRCC_3_tama$TamaID), 
-ccRCC2_NonccRCC = unique(seurat_annotations_ccRCC_2_tama[seurat_annotations_ccRCC_2_tama$Status == 'non-ccRCC', 'TamaID']), 
-ccRCC4_NonccRCC = unique(seurat_annotations_ccRCC_4_tama[seurat_annotations_ccRCC_4_tama$Status == 'non-ccRCC', 'TamaID']), 
-ccRCC5_NonccRCC = unique(seurat_annotations_ccRCC_5_tama[seurat_annotations_ccRCC_5_tama$Status == 'non-ccRCC', 'TamaID']),
-
-ccRCC2_ccRCC = unique(seurat_annotations_ccRCC_2_tama[seurat_annotations_ccRCC_2_tama$Status == 'ccRCC', 'TamaID']), ccRCC4_ccRCC = unique(seurat_annotations_ccRCC_4_tama[seurat_annotations_ccRCC_4_tama$Status == 'ccRCC', 'TamaID']),
-ccRCC5_ccRCC = unique(seurat_annotations_ccRCC_5_tama[seurat_annotations_ccRCC_5_tama$Status == 'ccRCC', 'TamaID']))
-
-IsoformMatchingCA9 <- upset(fromList(IsoformIds_CA9Pos_Neg2), order.by = 'freq', nsets = 10, nintersects = 60, number.angles = 45, point.size = 3.5, line.size = 2, mainbar.y.label = "# Isoforms", sets.x.label = "Number of Isoforms", text.scale = 2)
-
-IsoformMatchingCA9
-
-png("Supplementary6.png", width = 20 * 400, height = 14 * 300, res = 300, bg = "transparent")
-print(IsoformMatchingCA9)
-dev.off()
-```
-
-
-# Supplementary Fig 7
+# Supplementary Fig 3
 ```{r JaccardSimilarity}
 jaccard_similarity_Novel_filtered <- function(isoAnnotation1, isoAnnotation2) {
    
-    isoAnnotation1 <- isoAnnotation1[isoAnnotation1$number_of_Cellbarcodes >= 3, ]
-    isoAnnotation2 <- isoAnnotation2[isoAnnotation2$number_of_Cellbarcodes >= 3, ]
+    #isoAnnotation1 <- isoAnnotation1[isoAnnotation1$number_of_Cellbarcodes >= 3, ]
+    #isoAnnotation2 <- isoAnnotation2[isoAnnotation2$number_of_Cellbarcodes >= 3, ]
   
     intersect1_2 <-length(intersect(isoAnnotation1[isoAnnotation1$structural_category %in% c('novel_not_in_catalog', 'novel_in_catalog'), 'TamaID'],isoAnnotation2[isoAnnotation2$structural_category %in% c('novel_not_in_catalog', 'novel_in_catalog'), 'TamaID']))
                         
@@ -233,9 +143,6 @@ ggsave("Supplementary_Figure_7A.png", plot = FigureSupp5A, bg = "transparent", w
 
 ```{r 3Allcellssimilarity}
 jaccard_similarity_filtered <- function(isoAnnotation1, isoAnnotation2) {
-   
-    isoAnnotation1 <- isoAnnotation1[isoAnnotation1$number_of_Cellbarcodes >= 3, ]
-    isoAnnotation2 <- isoAnnotation2[isoAnnotation2$number_of_Cellbarcodes >= 3, ]
   
     intersect1_2 <-length(intersect(isoAnnotation1$TamaID,isoAnnotation2$TamaID))
                         
@@ -287,7 +194,6 @@ figure5A_ALL <- pheatmap(jaccard_matrix,
          cluster_rows = FALSE,
          cluster_cols = FALSE)
 
-
 ggsave("Supplementary_Figure_7A_all.png", plot = figure5A_ALL, bg = "transparent", width = 5, height = 4)
 
 ```
@@ -297,8 +203,6 @@ ggsave("Supplementary_Figure_7A_all.png", plot = figure5A_ALL, bg = "transparent
 ```{r 3cellssimilarityFSM}
 jaccard_similarity_FSM_filtered <-  function(isoAnnotation1, isoAnnotation2) {
    
-    isoAnnotation1 <- isoAnnotation1[isoAnnotation1$number_of_Cellbarcodes >= 3, ]
-    isoAnnotation2 <- isoAnnotation2[isoAnnotation2$number_of_Cellbarcodes >= 3, ]
   
     intersect1_2 <-length(intersect(isoAnnotation1[isoAnnotation1$structural_category %in% c('full-splice_match'), 'TamaID'],isoAnnotation2[isoAnnotation2$structural_category %in% c('full-splice_match'), 'TamaID']))
                         
@@ -337,7 +241,7 @@ jaccard_matrix[upper.tri(jaccard_matrix)] <- t(jaccard_matrix)[upper.tri(jaccard
 library(pheatmap)
 colnames(jaccard_matrix) <- c("Normal", "ccRCC2", "ccRCC3", "ccRCC4", "ccRCC5")
 rownames(jaccard_matrix) <- c("Normal", "ccRCC2", "ccRCC3", "ccRCC4", "ccRCC5")
-breaks <- seq(0.2, 0.4, length.out = 100)
+breaks <- seq(0, 0.4, length.out = 100)
 colors <- colorRampPalette(c("blue", "red"))(99)
 
 figure5a_fsm <- pheatmap(jaccard_matrix, 
@@ -357,10 +261,7 @@ ggsave("Supplementary_Figure_7A_fsm.png", plot = figure5a_fsm, bg = "transparent
 
 ```{r 3cellssimilarityISM}
 jaccard_similarity_ISM_filtered <-  function(isoAnnotation1, isoAnnotation2) {
-   
-    isoAnnotation1 <- isoAnnotation1[isoAnnotation1$number_of_Cellbarcodes >= 3, ]
-    isoAnnotation2 <- isoAnnotation2[isoAnnotation2$number_of_Cellbarcodes >= 3, ]
-  
+
     intersect1_2 <-length(intersect(isoAnnotation1[isoAnnotation1$structural_category %in% c('incomplete-splice_match'), 'TamaID'],isoAnnotation2[isoAnnotation2$structural_category %in% c('incomplete-splice_match'), 'TamaID']))
                         
   distinct1 <- length(isoAnnotation1[isoAnnotation1$structural_category %in% c('incomplete-splice_match'), 'TamaID']) - intersect1_2
@@ -398,7 +299,7 @@ jaccard_matrix[upper.tri(jaccard_matrix)] <- t(jaccard_matrix)[upper.tri(jaccard
 library(pheatmap)
 colnames(jaccard_matrix) <- c("Normal", "ccRCC2", "ccRCC3", "ccRCC4", "ccRCC5")
 rownames(jaccard_matrix) <- c("Normal", "ccRCC2", "ccRCC3", "ccRCC4", "ccRCC5")
-breaks <- seq(0.1, 0.3, length.out = 100)
+breaks <- seq(0, 0.4, length.out = 100)
 colors <- colorRampPalette(c("blue", "red"))(99)
 
 figure5a_ism <- pheatmap(jaccard_matrix, 
@@ -417,23 +318,22 @@ ggsave("Supplementary_Figure_7A_ism.png", plot = figure5a_ism, bg = "transparent
 ```
 
 # Figure 4B
-
 ```{r isoformmatch}
-AllMatchingIDs <- intersect(intersect(intersect(intersect(isoform_annotations_ccRCC2_tama_3cells$TamaID, isoform_annotations_ccRCC3_tama_3cells$TamaID), isoform_annotations_ccRCC4_tama_3cells$TamaID), isoform_annotations_ccRCC5_tama_3cells$TamaID), isoform_annotations_normal_tama_3cells$TamaID)
+AllMatchingIDs <- intersect(intersect(intersect(intersect(isoform_annotations_ccRCC2_tama$TamaID, isoform_annotations_ccRCC3_tama$TamaID), isoform_annotations_ccRCC4_tama$TamaID), isoform_annotations_ccRCC5_tama$TamaID), isoform_annotations_normal_tama$TamaID)
 ```
 
 ```{r readIsoMatches}
-CellNumberInNormal <- as.data.frame(isoform_annotations_normal_tama_3cells[isoform_annotations_normal_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC2 <- as.data.frame(isoform_annotations_ccRCC2_tama_3cells[isoform_annotations_ccRCC2_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC3 <- as.data.frame(isoform_annotations_ccRCC3_tama_3cells[isoform_annotations_ccRCC3_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC4 <- as.data.frame(isoform_annotations_ccRCC4_tama_3cells[isoform_annotations_ccRCC4_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC5 <- as.data.frame(isoform_annotations_ccRCC5_tama_3cells[isoform_annotations_ccRCC5_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
+CellNumberInNormal <- as.data.frame(isoform_annotations_normal_tama[isoform_annotations_normal_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC2 <- as.data.frame(isoform_annotations_ccRCC2_tama[isoform_annotations_ccRCC2_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC3 <- as.data.frame(isoform_annotations_ccRCC3_tama[isoform_annotations_ccRCC3_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC4 <- as.data.frame(isoform_annotations_ccRCC4_tama[isoform_annotations_ccRCC4_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC5 <- as.data.frame(isoform_annotations_ccRCC5_tama[isoform_annotations_ccRCC5_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
 
-CellNumberInNormal_nonmatch <- as.data.frame(isoform_annotations_normal_tama_3cells[!isoform_annotations_normal_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC2_nonmatch <- as.data.frame(isoform_annotations_ccRCC2_tama_3cells[!isoform_annotations_ccRCC2_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC3_nonmatch <- as.data.frame(isoform_annotations_ccRCC3_tama_3cells[!isoform_annotations_ccRCC3_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC4_nonmatch <- as.data.frame(isoform_annotations_ccRCC4_tama_3cells[!isoform_annotations_ccRCC4_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
-CellNumberInccRCC5_nonmatch <- as.data.frame(isoform_annotations_ccRCC5_tama_3cells[!isoform_annotations_ccRCC5_tama_3cells$TamaID %in% AllMatchingIDs, 'number_of_Cellbarcodes'])
+CellNumberInNormal_nonmatch <- as.data.frame(isoform_annotations_normal_tama[!isoform_annotations_normal_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC2_nonmatch <- as.data.frame(isoform_annotations_ccRCC2_tama[!isoform_annotations_ccRCC2_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC3_nonmatch <- as.data.frame(isoform_annotations_ccRCC3_tama[!isoform_annotations_ccRCC3_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC4_nonmatch <- as.data.frame(isoform_annotations_ccRCC4_tama[!isoform_annotations_ccRCC4_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
+CellNumberInccRCC5_nonmatch <- as.data.frame(isoform_annotations_ccRCC5_tama[!isoform_annotations_ccRCC5_tama$TamaID %in% AllMatchingIDs, 'CellNumber'])
 
 
 
@@ -485,11 +385,168 @@ head(All_Matched_UnMatched)
 
 
 ```{r DensityPlot}
-figure5bsupp <- ggplot(All_Matched_UnMatched, aes(log2(CellNumber), fill=Status)) + geom_density(alpha=0.5) + facet_wrap(~Group) + theme_bw()
+figure5bsupp <- ggplot(All_Matched_UnMatched, aes(CellNumber, fill=Status)) + geom_density(alpha=0.5) + facet_wrap(~Group) + theme_classic() + scale_x_log10()
 figure5bsupp
 mean(All_Matched_cellNumber$CellNumber)
 #[1] 33.87988
 mean(All_UnMatched_cellNumber$CellNumber)
 #[1] 8.134875
 ggsave("Figure_6B.png", plot = figure5bsupp, bg = "transparent", width = 15, height = 10)
+```
+
+
+## another strategy
+```{r checkNumbers}
+all_datasets <- list(isoform_annotations_ccRCC2_tama$TamaID,
+                     isoform_annotations_ccRCC3_tama$TamaID,
+                     isoform_annotations_ccRCC4_tama$TamaID,
+                     isoform_annotations_ccRCC5_tama$TamaID,
+                     isoform_annotations_normal_tama$TamaID)
+AllMatchingIDs <- Reduce(intersect, all_datasets)
+```
+
+
+```{r data}
+# Initialize a vector to store the count of occurrences
+TamaID_count <- table(unlist(all_datasets))
+
+# Find TamaIDs present in exactly 4 datasets
+MatchingIn4 <- names(TamaID_count[TamaID_count == 4]) ## 13128
+
+# Find TamaIDs present in exactly 3 datasets
+MatchingIn3 <- names(TamaID_count[TamaID_count == 3])
+
+# Find TamaIDs present in exactly 2 datasets
+MatchingIn2 <- names(TamaID_count[TamaID_count == 2])
+
+# Find TamaIDs unique to only one dataset
+UniqueToOne <- names(TamaID_count[TamaID_count == 1])
+```
+
+```{r}
+isoform_annotations_all <- rbind(isoform_annotations_normal_tama,isoform_annotations_ccRCC2_tama,isoform_annotations_ccRCC3_tama, isoform_annotations_ccRCC4_tama, isoform_annotations_ccRCC5_tama)
+
+isoform_annotations_all_1_sample <- isoform_annotations_all[isoform_annotations_all$TamaID %in% UniqueToOne, ]
+isoform_annotations_all_all_sample <- isoform_annotations_all[isoform_annotations_all$TamaID %in% AllMatchingIDs, ]
+isoform_annotations_all_2_sample <- isoform_annotations_all[isoform_annotations_all$TamaID %in% MatchingIn2, ]
+isoform_annotations_all_3_sample <- isoform_annotations_all[isoform_annotations_all$TamaID %in% MatchingIn3, ]
+isoform_annotations_all_4_sample <- isoform_annotations_all[isoform_annotations_all$TamaID %in% MatchingIn4, ]
+
+
+isoform_annotations_all_1_sample_mean <- isoform_annotations_all_1_sample %>% dplyr::select(TamaID, CellNumber, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID) %>% dplyr::summarise(meanCell = mean(CellNumber))
+isoform_annotations_all_2_sample_mean <- isoform_annotations_all_2_sample %>% dplyr::select(TamaID, CellNumber, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID) %>% dplyr::summarise(meanCell = mean(CellNumber))
+isoform_annotations_all_3_sample_mean <- isoform_annotations_all_3_sample %>% dplyr::select(TamaID, CellNumber, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID) %>% dplyr::summarise(meanCell = mean(CellNumber))
+isoform_annotations_all_4_sample_mean <- isoform_annotations_all_4_sample %>% dplyr::select(TamaID, CellNumber, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID) %>% dplyr::summarise(meanCell = mean(CellNumber))
+isoform_annotations_all_5_sample_mean <- isoform_annotations_all_all_sample %>% dplyr::select(TamaID, CellNumber, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID) %>% dplyr::summarise(meanCell = mean(CellNumber))
+
+isoform_annotations_all_1_sample_mean$Status <- 'Found in 1 samples'
+isoform_annotations_all_2_sample_mean$Status <- 'Found in 2 samples'
+isoform_annotations_all_3_sample_mean$Status <- 'Found in 3 samples'
+isoform_annotations_all_4_sample_mean$Status <- 'Found in 4 samples'
+isoform_annotations_all_5_sample_mean$Status <- 'Found in all samples'
+
+
+All_Matched_UnMatched_newstrategy <- rbind(isoform_annotations_all_1_sample_mean, isoform_annotations_all_5_sample_mean, isoform_annotations_all_2_sample_mean, isoform_annotations_all_3_sample_mean, isoform_annotations_all_4_sample_mean)
+
+figure5bsupp <- ggplot(All_Matched_UnMatched_newstrategy, aes(log2(meanCell), fill=Status)) + geom_density(alpha=0.5) + theme_classic() #+ scale_x_log10()
+figure5bsupp
+#mean(isoform_annotations_all_all_sample$meanCell)
+#[1] 43.34075
+
+#mean(isoform_annotations_all_4_sample$CellNumber)
+##[1] 24.7747
+#mean(isoform_annotations_all_3_sample$CellNumber)
+## [1] 16.68712
+#mean(isoform_annotations_all_2_sample$CellNumber)
+##[1] 11.56378
+#mean(isoform_annotations_all_1_sample$CellNumber)
+## [1] 6.796198
+
+library(viridis) 
+
+library(ggpubr)
+figure6_cellDist <-  ggplot(All_Matched_UnMatched_newstrategy, aes(x = factor(Status), y = meanCell, fill = Status)) +
+     geom_boxplot(notch = FALSE) +
+     labs(x = "Status", y = "CellNumber") + 
+     #facet_grid(~ Status) +
+     labs(y = "CellNumber") +
+     theme_classic() + scale_y_log10() +  scale_fill_viridis_d(option = "B")+
+   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", aes(label = ..p.signif..), 
+                     comparisons = list(c("Found in 1 samples", "Found in 2 samples"),
+                                        c("Found in 2 samples", "Found in 3 samples"),
+                                        c("Found in 3 samples", "Found in 4 samples"),
+                                        c("Found in 4 samples", "Found in all samples")),
+                     label = "p.signif") +
+      theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+ggsave("/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/Figures/Figures/Figure_4B.png", plot = figure6_cellDist, bg = "transparent", width = 10, height = 8)
+
+All_Matched_UnMatched_newstrategy$Status <- as.factor(All_Matched_UnMatched_newstrategy$Status)
+
+p_values <- compare_means(meanCell ~ Status, data = All_Matched_UnMatched_newstrategy, 
+                          method = "wilcox.test", 
+                         # group.by = "Status", 
+                          comparisons = list(c("Found in 1 samples", "Found in 2 samples"),
+                                             c("Found in 2 samples", "Found in 3 samples"),
+                                             c("Found in 3 samples", "Found in 4 samples"),
+                                             c("Found in 4 samples", "Found in all samples")))
+# View the p-values
+print(p_values)
+```
+
+
+```{r ggtranscript}
+library(ggplot2)
+library(ggtranscript)
+
+annotation_gff_ccRCC2 <- read.csv('/Users/tulaykarakulak/Documents/PhD/Projects/ccRCC_Sc_lrSequencing/070923_Final/p28443_o31598_2_threecells_combined/o31598_SMRTLink_IsoSeq/p28443_o31598_2_threecells_combined/restructured.gff', sep='\t', header = FALSE)
+
+annotation_gff_ccRCC5 <- read.csv('/Users/tulaykarakulak/Documents/PhD/Projects/ccRCC_Sc_lrSequencing/070923_Final/p28443_o31598_5/o31598_SMRTLink_IsoSeq/p28443_o31598_5/restructured.gff', sep='\t', header = FALSE)
+
+annotation_gff_ccRCC4 <- read.csv('/Users/tulaykarakulak/Documents/PhD/Projects/ccRCC_Sc_lrSequencing/070923_Final/p28443_o31598_4/o31598_SMRTLink_IsoSeq/p28443_o31598_4/o31598_SMRTLink_IsoSeq/p28443_o31598_4/restructured.gff', sep='\t', header = FALSE)
+
+colnames(annotation_gff_ccRCC2) <- c('seqnames', 'start', 'end', 'strand', 'type', 'gene_name','transcript_name')
+colnames(annotation_gff_ccRCC5) <- c('seqnames', 'start', 'end', 'strand', 'type', 'gene_name','transcript_name')
+colnames(annotation_gff_ccRCC4) <- c('seqnames', 'start', 'end', 'strand', 'type', 'gene_name','transcript_name')
+```
+
+```{r NNMT}
+NNMT_annotations_ccRCC2 <- annotation_gff_ccRCC2[annotation_gff_ccRCC2$gene_name == 'PB.100830',] %>% dplyr::filter(type == 'exon')
+NNMT_annotations_ccRCC5 <- annotation_gff_ccRCC5[annotation_gff_ccRCC5$gene_name == 'PB.139561',] %>% dplyr::filter(type == 'exon')
+NNMT_annotations_ccRCC4 <- annotation_gff_ccRCC4[annotation_gff_ccRCC4$gene_name == 'PB.136593',] %>% dplyr::filter(type == 'exon')
+
+NNMT_annotations_ccRCC2$Sample <- 'ccRCC2'
+NNMT_annotations_ccRCC5$Sample <- 'ccRCC5'
+NNMT_annotations_ccRCC4$Sample <- 'ccRCC4'
+
+NNMT_annotations_ccRCC2_subset <- NNMT_annotations_ccRCC2 %>% dplyr::filter(transcript_name %in% c("PB.100830.44", "PB.100830.29", "PB.100830.2", "PB.100830.43")) # only .44 is the novel, the rest are FSM
+NNMT_annotations_ccRCC5_subset <- NNMT_annotations_ccRCC5 %>% dplyr::filter(transcript_name %in% c("PB.139561.14", "PB.139561.17", "PB.139561.24","PB.139561.15")) # the last two are FSM
+NNMT_annotations_ccRCC4_subset <- NNMT_annotations_ccRCC4 %>% dplyr::filter(transcript_name %in% c("PB.136593.5", "PB.136593.19", "PB.136593.14", "PB.136593.16")) # first three are FSM 
+
+NNMT_annotations_subset <- rbind(NNMT_annotations_ccRCC2_subset, NNMT_annotations_ccRCC5_subset, NNMT_annotations_ccRCC4_subset)
+
+novel_common_transcripts <- c("PB.100830.44", "PB.139561.14", "PB.136593.16")
+novel_transcript <- c("PB.139561.17")
+
+NNMT_annotations_subset <- NNMT_annotations_subset %>% mutate(color_group = ifelse(transcript_name %in% novel_common_transcripts, "Novel_Common", "FSM"))
+
+NNMT_annotations_subset[NNMT_annotations_subset$transcript_name == novel_transcript, 'color_group'] <- 'Novel'
+
+colors <- c("Novel_Common" = "#F59F01", "Novel" = "#B29F01", "FSM" = "#5172B4")
+
+NNMT_annotations_subset %>%
+    ggplot(aes(
+        xstart = start,
+        xend = end,
+        y = transcript_name
+    )) + geom_range(
+      aes(fill = color_group)
+    ) +
+    geom_intron(
+        data = to_intron(NNMT_annotations_subset, "transcript_name"),
+        aes(strand = strand)
+    ) +
+    scale_fill_manual(values = colors) +
+   xlim(114297930, 114298422)
+
 ```

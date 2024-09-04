@@ -1,0 +1,537 @@
+---
+title: "Manuscript_2"
+author: "Tülay Karakulak"
+date: "2024-09-02"
+output: html_document
+---
+
+Codes to generate Figure 3 A, B, and C, and Supplementary Figure 2 and 3.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load Libraries
+```{r loadLibraries}
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(rmarkdown)
+library(RColorBrewer)
+library(viridis)
+set.seed(12345)
+```
+
+
+## Read Seurat Data
+```{r loadData, message=FALSE}
+healthy_gene_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/healthy_gene_subset.RDS')
+ccRCC_2_gene_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_2_gene_subset.RDS')
+ccRCC_3_gene_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_3_gene_subset.RDS')
+ccRCC_4_gene_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_4_gene_subset.RDS')
+ccRCC_5_gene_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_5_gene_subset.RDS')
+
+kidney.combined <- list(healthy_gene_subset, ccRCC_2_gene_subset, ccRCC_3_gene_subset, ccRCC_4_gene_subset, ccRCC_5_gene_subset)
+```
+
+## SCTransform
+Tutorial used for batch correction: https://bioinformatics-core-shared-training.github.io/SingleCell_RNASeq_Jan23/UnivCambridge_ScRnaSeqIntro_Base/Markdowns/101-seurat_part2.html by changing variable.features.n to 3000, and nfeatures to 2000, and adding a sample.tree to integrate ccRCC samples first, and then the healthy sample (integration order: ccRCC2-ccRCC5-ccRCC4-ccRCC3-healthy)
+
+```{r integrateCells, message=FALSE, max.height='100px', attr.output='.numberLines', warning=FALSE}
+# loop through the individual samples, normalize and scale them
+kidney.combined <- lapply(X = kidney.combined, FUN = function(x) {
+    invisible(capture.output(
+    x <- SCTransform(x,  verbose = TRUE, variable.features.n = 3000)
+    ))
+  return(x)
+})
+# integrate all samples 
+features <- SelectIntegrationFeatures(object.list = kidney.combined, nfeatures= 2000)
+kidney.combined_anchors <- FindIntegrationAnchors(object.list = kidney.combined, anchor.features = features)
+kidney.combined <- IntegrateData(anchorset = kidney.combined_anchors, normalization.method = "SCT", 
+                                 sample.tree = matrix(c(-2, 1, 2, 3, -5, -4, -3, -1), ncol = 2))
+
+# Set the default assay to the integrated data
+#DefaultAssay(kidney.combined) <- "integrated"
+#print(features[1:10])
+```
+
+
+```{r SCTransformData, message=FALSE}
+kidney.combined2 <- list(healthy_gene_subset, ccRCC_2_gene_subset, ccRCC_3_gene_subset, ccRCC_4_gene_subset, ccRCC_5_gene_subset)
+
+kidney.combined2 <- lapply(X = kidney.combined2, FUN = function(x) {
+    invisible(capture.output(
+    x <- SCTransform(x,  verbose = TRUE, variable.features.n = 3000)
+    ))
+  return(x)
+})
+```
+
+# Figure 3A
+```{r scGate}
+library(scGate)
+
+# scgate model
+my_scGate_model <- scGate::gating_model(name = "ccRCC", signature = c("CA9"))  
+
+#ccRCC2_kidney <- ScaleData(kidney.combined2$ccRCC_2, verbose = FALSE)
+ccRCC2_kidney <- RunPCA(kidney.combined2[[2]], npcs = 20, verbose = FALSE)
+ccRCC2_kidney <- RunUMAP(ccRCC2_kidney, reduction = "pca", dims = 1:16)
+ccRCC_2_scgate <- scGate(data = ccRCC2_kidney, model = my_scGate_model)
+#DimPlot(ccRCC_2_scgate, group.by = "is.pure")
+
+#scGate it!
+#ccRCC4_kidney <- ScaleData(kidney.combined2$ccRCC_4, verbose = FALSE)
+ccRCC4_kidney <- RunPCA(kidney.combined2[[4]], npcs = 20, verbose = FALSE)
+ccRCC4_kidney <- RunUMAP(ccRCC4_kidney, reduction = "pca", dims = 1:16)
+ccRCC_4_scgate <- scGate(data = ccRCC4_kidney, model = my_scGate_model)
+#DimPlot(ccRCC_4_scgate, group.by = "is.pure")
+
+#ccRCC5_kidney <- ScaleData(kidney.combined2$ccRCC_5, verbose = FALSE)
+ccRCC5_kidney <- RunPCA(kidney.combined2[[5]], npcs = 20, verbose = FALSE)
+ccRCC5_kidney <- RunUMAP(ccRCC5_kidney, reduction = "pca", dims = 1:16)
+ccRCC_5_scgate <- scGate(data = ccRCC5_kidney, model = my_scGate_model)
+#DimPlot(ccRCC_5_scgate, group.by = "is.pure")
+
+ccRCC3_kidney <- RunPCA(kidney.combined2[[3]], npcs = 20, verbose = FALSE)
+ccRCC3_kidney <- RunUMAP(ccRCC3_kidney, reduction = "pca", dims = 1:16)
+ccRCC_3_scgate <- scGate(data = ccRCC3_kidney, model = my_scGate_model)
+
+#DimPlot(ccRCC_2_scgate, group.by = "is.pure") does not have CA9 like normal cell
+
+colors = c("Pure" = "#0a9396",
+           "Impure" = "#e9d8a6")
+
+normal_kidney <- RunPCA(kidney.combined2[[1]], npcs = 20, verbose = FALSE)
+normal_kidney <- RunUMAP(normal_kidney, reduction = "pca", dims = 1:16)
+normal_scgate <- scGate(data = normal_kidney, model = my_scGate_model)
+
+ccRCC_5_pure_impure <- SCpubr::do_DimPlot(sample = ccRCC_5_scgate, label = FALSE, plot.axes = TRUE, label.box = TRUE, group.by = 'is.pure', colors.use = colors, pt.size = 3)
+#ggsave("ccRCC_5_pure_impure.png", plot = ccRCC_5_pure_impure, bg = "transparent", width = 6, height = 6)
+
+ccRCC_4_pure_impure <- SCpubr::do_DimPlot(sample = ccRCC_4_scgate, label = FALSE, plot.axes = TRUE, label.box = TRUE, group.by = 'is.pure', colors.use = colors, pt.size = 3)
+#ggsave("ccRCC_4_pure_impure.png", plot = ccRCC_4_pure_impure, bg = "transparent", width = 6, height = 6)
+
+ccRCC_2_pure_impure <- SCpubr::do_DimPlot(sample = ccRCC_2_scgate, label = FALSE, plot.axes = TRUE, label.box = TRUE, group.by = 'is.pure', colors.use = colors, pt.size = 3)
+#ggsave("ccRCC_2_pure_impure.png", plot = ccRCC_2_pure_impure, bg = "transparent", width = 6, height = 6)
+
+ccRCC_3_pure_impure <- SCpubr::do_DimPlot(sample = ccRCC_3_scgate, label = FALSE, plot.axes = TRUE, label.box = TRUE, group.by = 'is.pure', colors.use = colors, pt.size = 3)
+#ggsave("ccRCC_3_pure_impure.png", plot = ccRCC_3_pure_impure, bg = "transparent", width = 10, height = 6)
+
+normal_pure_impure <- SCpubr::do_DimPlot(sample = normal_scgate, label = FALSE, plot.axes = TRUE, label.box = TRUE, group.by = 'is.pure', colors.use = colors, pt.size = 3)
+#ggsave("Normal_pure_impure.png", plot = normal_pure_impure, bg = "transparent", width = 6, height = 6)
+```
+
+```{r CA9PosAndNeg}
+Cell_Sample_Type_ccRCC2 <- as.data.frame(Idents(ccRCC_2_scgate))
+Cell_Sample_Type_ccRCC2$BC <- rownames(Cell_Sample_Type_ccRCC2)
+colnames(Cell_Sample_Type_ccRCC2) <- c('CellType', 'CellBarcode')
+Cell_Sample_Type_ccRCC2$CellType <- ifelse(Cell_Sample_Type_ccRCC2$CellType == 'Pure', 'ccRCC', 'non-ccRCC')
+Cell_Sample_Type_ccRCC2$Sample <- 'ccRCC2'
+
+Cell_Sample_Type_ccRCC4 <- as.data.frame(Idents(ccRCC_4_scgate))
+Cell_Sample_Type_ccRCC4$BC <- rownames(Cell_Sample_Type_ccRCC4)
+colnames(Cell_Sample_Type_ccRCC4) <- c('CellType', 'CellBarcode')
+Cell_Sample_Type_ccRCC4$CellType <- ifelse(Cell_Sample_Type_ccRCC4$CellType == 'Pure', 'ccRCC', 'non-ccRCC')
+Cell_Sample_Type_ccRCC4$Sample <- 'ccRCC4'
+
+Cell_Sample_Type_ccRCC5 <- as.data.frame(Idents(ccRCC_5_scgate))
+Cell_Sample_Type_ccRCC5$BC <- rownames(Cell_Sample_Type_ccRCC5)
+colnames(Cell_Sample_Type_ccRCC5) <- c('CellType', 'CellBarcode')
+Cell_Sample_Type_ccRCC5$CellType <- ifelse(Cell_Sample_Type_ccRCC5$CellType == 'Pure', 'ccRCC', 'non-ccRCC')
+Cell_Sample_Type_ccRCC5$Sample <- 'ccRCC5'
+
+
+Cell_Sample_Type_ccRCC3 <- as.data.frame(Idents(ccRCC_3_scgate))
+Cell_Sample_Type_ccRCC3$BC <- rownames(Cell_Sample_Type_ccRCC3)
+colnames(Cell_Sample_Type_ccRCC3) <- c('CellType', 'CellBarcode')
+Cell_Sample_Type_ccRCC3$CellType <- ifelse(Cell_Sample_Type_ccRCC3$CellType == 'Pure', 'ccRCC', 'non-ccRCC')
+Cell_Sample_Type_ccRCC3$Sample <- 'ccRCC3'
+
+
+Cell_Sample_Type_normal <- as.data.frame(Idents(normal_scgate))
+Cell_Sample_Type_normal$BC <- rownames(Cell_Sample_Type_normal)
+colnames(Cell_Sample_Type_normal) <- c('CellType', 'CellBarcode')
+Cell_Sample_Type_normal$CellType <- ifelse(Cell_Sample_Type_normal$CellType == 'Pure', 'ccRCC', 'non-ccRCC')
+Cell_Sample_Type_normal$Sample <- 'Normal'
+
+
+
+Cell_Sample_Type <- rbind(Cell_Sample_Type_ccRCC5, Cell_Sample_Type_ccRCC4, Cell_Sample_Type_ccRCC2,Cell_Sample_Type_normal, Cell_Sample_Type_ccRCC3)
+
+# Save Cell Types
+#write.table(Cell_Sample_Type, 'ccRCC_CellType_Revised.tsv', quote = FALSE, row.names = FALSE, sep='\t')
+```
+
+# Scale and PCA 
+```{r ScaleandPCA, message=FALSE}
+DefaultAssay(kidney.combined) <- 'integrated'
+kidney.combined <- ScaleData(kidney.combined, verbose = FALSE)
+kidney.combined <- RunPCA(kidney.combined, npcs = 20, verbose = FALSE)
+ElbowPlot(kidney.combined)
+```
+
+
+# Distribution of Cells Across Clusters
+```{r DistributionOfCells, message=FALSE}
+kidney.combined <- FindNeighbors(kidney.combined, dims = 1:16)
+kidney.combined <- FindClusters(kidney.combined, resolution = 0.8)
+table(Cluster = kidney.combined$integrated_snn_res.0.8, Batch = kidney.combined$orig.ident)
+```
+
+### Supplementary Figure 2 
+```{r ccRCCMarkers}
+ca9_ccRCC2 <- SCpubr::do_FeaturePlot(sample = ccRCC_2_scgate, 
+                             features = "CA9",
+                             plot.title = "Expression of ccRCC Marker: CA9", 
+                             reduction = "umap", split.by = 'orig.ident')
+
+#ca9_ccRCC3 <- SCpubr::do_FeaturePlot(sample = ccRCC_3_scgate, 
+#                             features = "CA9",
+#                             plot.title = "Expression of ccRCC Marker: CA9", 
+#                             reduction = "umap", split.by = 'orig.ident')
+
+ca9_ccRCC4 <- SCpubr::do_FeaturePlot(sample = ccRCC_4_scgate, 
+                             features = "CA9",
+                             plot.title = "Expression of ccRCC Marker: CA9", 
+                             reduction = "umap", split.by = 'orig.ident')
+
+ca9_ccRCC5 <- SCpubr::do_FeaturePlot(sample = ccRCC_5_scgate, 
+                             features = "CA9",
+                             plot.title = "Expression of ccRCC Marker: CA9", 
+                             reduction = "umap", split.by = 'orig.ident')
+
+#ca9_normal <- SCpubr::do_FeaturePlot(sample = normal_scgate, 
+#                             features = "CA9",
+#                             plot.title = "Expression of ccRCC Marker: CA9", 
+#                             reduction = "umap", split.by = 'orig.ident')
+
+## Supplementary 2 
+SCpubr::do_FeaturePlot(sample = ccRCC_2_scgate, 
+                        features =c("GGT1", 'EPCAM', 'CA9'),
+                        plot.title = "Expression of Markers: GGT1, EPCAM, CA9", 
+                        reduction = "umap", split.by = 'orig.ident', pt.size = 2)
+SCpubr::do_FeaturePlot(sample = ccRCC_3_scgate, 
+                        features =c("GGT1", 'EPCAM', 'CA9'),
+                        plot.title = "Expression of Markers: GGT1, EPCAM, CA9", 
+                        reduction = "umap", split.by = 'orig.ident', pt.size = 2)
+SCpubr::do_FeaturePlot(sample = ccRCC_4_scgate, 
+                        features =c("GGT1", 'EPCAM', 'CA9'),
+                        plot.title = "Expression of Markers: GGT1, EPCAM, CA9", 
+                        reduction = "umap", split.by = 'orig.ident', pt.size = 2)                        
+
+SCpubr::do_FeaturePlot(sample = ccRCC_5_scgate, 
+                        features =c("GGT1", 'EPCAM', 'CA9'),
+                        plot.title = "Expression of Markers: GGT1, EPCAM, CA9", 
+                        reduction = "umap", split.by = 'orig.ident', pt.size = 2)
+
+SCpubr::do_FeaturePlot(sample = normal_scgate, 
+                        features =c("GGT1", 'EPCAM', 'CA9'),
+                        plot.title = "Expression of Markers: GGT1, EPCAM, CA9", 
+                        reduction = "umap", split.by = 'orig.ident', pt.size = 2)
+```
+
+
+### Figure 3B
+## Cell distribution of samples across ccRCC+ and ccRCC-
+```{r DistributionOfCellsinccRCCPosandNeg, message=FALSE}
+#table(Cluster = kidney.combined$ , Batch = kidney.combined$orig.ident)
+library(tidyr)
+data <- data.frame(
+  Cluster = c("ccRCC", "non-ccRCC"),
+  ccRCC2 = c(321, 13),
+  ccRCC3 = c(0, 272),
+  ccRCC4 = c(41, 975),
+  ccRCC5 = c(209, 157),
+  Normal = c(0, 390)
+)
+
+colors = c("Pure" = "#0a9396",
+           "Impure" = "#e9d8a6")
+
+# Transform the data to long format
+data_long <- pivot_longer(data, cols = -Cluster, names_to = "Batch", values_to = "Count")
+library(ggsci)
+# Create the bar plot
+NumberOfCells <- ggplot(data_long, aes(x = Batch, y = Count, fill = Cluster)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), color='black') +
+  geom_text(aes(label = Count), vjust = -0.25, position = position_dodge(width = 0.9), size = 3.5) +
+    theme_classic() +
+  theme(text = element_text(size = 12),
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Number of ccRCC and non-ccRCC cells",
+       x = "Samples", 
+       y = "# of Cell") + scale_fill_manual(values = c("#0a9396", "#e9d8a6"))
+
+#ggsave("Figure3C_BarGraph.png", plot = NumberOfCells, bg = "transparent", width = 8, height = 5)
+```
+
+
+## Figure 3C -- combined results
+```{r saveCells}
+# make a the dataframe
+Cell_Sample_Type2 <- Cell_Sample_Type %>% mutate(ExtractedNumber = gsub("ccRCC", "", Sample),
+           # Concatenate CellBarcode with the ExtractedNumber, separated by an underscore
+           NewCellBarcode = paste(CellBarcode, ExtractedNumber, sep = "_"))
+
+ccRCC_cells <- Cell_Sample_Type2[Cell_Sample_Type2$CellType == 'ccRCC', 'NewCellBarcode']
+
+# Assign cells as ccRCC
+Idents(kidney.combined, cells = ccRCC_cells) <- 'ccRCC'
+
+# Assign remaining cells as non-ccRCC
+all_cells <- colnames(kidney.combined)
+
+remaining_cells <- setdiff(all_cells, ccRCC_cells)
+
+Idents(kidney.combined, cells = remaining_cells) <- 'non-ccRCC'
+
+Cell_Sample_Type3 <- as.data.frame(Idents(kidney.combined))
+Cell_Sample_Type3$BC <- rownames(Cell_Sample_Type3)
+colnames(Cell_Sample_Type3) <- c('CellType', 'CellBarcode')
+Cell_Sample_Type4 <-  Cell_Sample_Type3 %>%
+  # Separate the 'CellType' column into two columns: 'CellType' (without the suffix) and 'Number' (the suffix after '_')
+  tidyr::separate(col = CellBarcode, into = c("CellBarcode", "Number"), sep = "_", remove = FALSE) %>%
+  # Update 'CellBarcode' to concatenate 'ccRCC' with the 'Number', also add the underscore back
+  dplyr::mutate(Sample = paste0("ccRCC_", Number)) %>%
+  # Now, remove the 'Number' column as it's no longer needed
+  dplyr::select(-Number)
+
+Cell_Sample_Type4$Sample[Cell_Sample_Type4$Sample == 'ccRCC_1'] <- 'Healthy'
+#write.table(Cell_Sample_Type2, 'Output/', quote = FALSE, row.names = FALSE, sep='\t')
+```
+
+
+# Find Markers
+```{r findMarkers, message=FALSE}
+#kidney.combined$CellTypes <- Idents(kidney.combined)
+DefaultAssay(kidney.combined) <- "SCT" # As the batch-corrected read counts are not suitable for looking at gene expression. 
+kidney.combined <- PrepSCTFindMarkers(kidney.combined)
+de_genes <- FindAllMarkers(kidney.combined, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25, recorrect_umi=FALSE)
+```
+
+
+### Figure 3D
+```{r plotDEG}
+# Heatmap
+p_deg <- SCpubr::do_GroupwiseDEPlot(sample = kidney.combined,
+                                de_genes = de_genes,
+                                top_genes = 10)
+p_deg
+#ggsave("Figure3D.png", plot = p_deg, bg = "transparent", width = 16, height = 8)
+```
+
+## Manual Cell Type Annotations
+Supplementary Figure 3
+## Manual Classifications - Marker list from Hella
+ccRCC <- c('CA9', 'VEGFA', 'NDUFA4L2')
+PTC <- c('EPCAM', 'PAX8', 'GGT1', 'RIDA')
+StromalCells <- c('ACTA2', 'FAP')
+EndothelialVascularCells <- c('CDH5', 'FLT1', 'VEGFR1', 'CD31', 'PECAM1')
+ImmuneCells <- c('CD3', 'CD8A', 'PD1', 'CTLA4', 'CD68', 'CD163', 'CD11C')
+CancerStemCells <- c('ALDH1A1', 'SOX2', 'CD44')
+MesenchymalCells <- c('VIM', 'FN1')
+
+## SC-TYPE
+```{r loadScType}
+# load libraries and functions
+lapply(c("dplyr","Seurat","HGNChelper","openxlsx"), library, character.only = T)
+source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/gene_sets_prepare.R"); source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_score_.R")
+
+# get cell-type-specific gene sets from our in-built database (DB)
+gs_list <- gene_sets_prepare("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/ScTypeDB_short.xlsx", "Kidney") # e.g. Immune system, Liver, Pancreas, Kidney, Eye, Brain
+
+# load example (scaled/normalized) scRNA-seq matrix
+scRNAseqData_ccRCC2 <- kidney.combined2[[2]]
+scRNAseqData_ccRCC3 <- kidney.combined2[[3]]
+scRNAseqData_ccRCC4 <- kidney.combined2[[4]]
+scRNAseqData_ccRCC5 <- kidney.combined2[[5]]
+scRNAseqData_Normal <- kidney.combined2[[1]]
+
+# These are now standard steps in the Seurat workflow for visualization and clustering
+scRNAseqData_ccRCC2 <- FindNeighbors(ccRCC2_kidney, dims = 1:20, verbose = FALSE)
+scRNAseqData_ccRCC2 <- FindClusters(scRNAseqData_ccRCC2, verbose = FALSE)
+
+# These are now standard steps in the Seurat workflow for visualization and clustering
+scRNAseqData_ccRCC3 <- FindNeighbors(ccRCC3_kidney, dims = 1:20, verbose = FALSE)
+scRNAseqData_ccRCC3 <- FindClusters(scRNAseqData_ccRCC3, verbose = FALSE)
+
+
+# These are now standard steps in the Seurat workflow for visualization and clustering
+scRNAseqData_ccRCC4 <- FindNeighbors(ccRCC4_kidney, dims = 1:20, verbose = FALSE)
+scRNAseqData_ccRCC4 <- FindClusters(scRNAseqData_ccRCC4, verbose = FALSE)
+
+# These are now standard steps in the Seurat workflow for visualization and clustering
+scRNAseqData_ccRCC5 <- FindNeighbors(ccRCC5_kidney, dims = 1:20, verbose = FALSE)
+scRNAseqData_ccRCC5 <- FindClusters(scRNAseqData_ccRCC5, verbose = FALSE)
+
+
+# These are now standard steps in the Seurat workflow for visualization and clustering
+scRNAseqData_Normal <- FindNeighbors(normal_kidney, dims = 1:20, verbose = FALSE)
+scRNAseqData_Normal <- FindClusters(scRNAseqData_Normal, verbose = FALSE)
+
+# scaled data
+scRNAseqData_ccRCC2_scaled <- as.matrix(scRNAseqData_ccRCC2[["SCT"]]$scale.data)
+scRNAseqData_ccRCC3_scaled <- as.matrix(scRNAseqData_ccRCC3[["SCT"]]$scale.data)
+scRNAseqData_ccRCC4_scaled <- as.matrix(scRNAseqData_ccRCC4[["SCT"]]$scale.data)
+scRNAseqData_ccRCC5_scaled <- as.matrix(scRNAseqData_ccRCC5[["SCT"]]$scale.data)
+scRNAseqData_Normal_scaled <- as.matrix(scRNAseqData_Normal[["SCT"]]$scale.data)
+
+
+# assign cell types
+es.max_ccRCC2 <- sctype_score(scRNAseqData = scRNAseqData_ccRCC2_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_ccRCC3 <- sctype_score(scRNAseqData = scRNAseqData_ccRCC3_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_ccRCC4 <- sctype_score(scRNAseqData = scRNAseqData_ccRCC4_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_ccRCC5 <- sctype_score(scRNAseqData = scRNAseqData_ccRCC5_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_Normal <- sctype_score(scRNAseqData = scRNAseqData_Normal_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+```
+
+
+```{r customClass}
+gs_list$gs_positive <- NULL
+gs_list$gs_positive$`ccRCC` <- c('CA9', 'ANGPTL4', 'NDUFA4L2', 'LOX', 'VEGFA', 'VIM', 'EGLN3')
+gs_list$gs_positive$`PTC` <- c('EPCAM', 'PAX8', 'GGT1', 'RIDA')
+gs_list$gs_positive$`StromalCells` <- c('ACTA2', 'FAP', 'COL1A1', 'COL1A2')
+gs_list$gs_positive$`EndothelialVascularCells` <- c('CDH5', 'FLT1', 'PECAM1', 'KDR', 'PECAM1')
+gs_list$gs_positive$`ImmuneCells` <- c('CD3', 'CD8A', 'PD1', 'CTLA4', 'CD68', 'CD163', 'CD11C')
+gs_list$gs_positive$`StemCells` <- c('ALDH1A1', 'SOX2', 'CD44')
+gs_list$gs_positive$`MesenchymalCells` <- c('VIM', 'FN1', 'SNAI1', 'SNAI2', 'ZEB1', 'ZEB2')
+gs_list$gs_positive$`EMT` <- c('CDH2', 'TWIST1', 'MMP2', 'MMP9')
+
+# assign cell types
+es.max_ccRCC2_custom <- sctype_score(scRNAseqData = scRNAseqData_ccRCC2_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_ccRCC3_custom  <- sctype_score(scRNAseqData = scRNAseqData_ccRCC3_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_ccRCC4_custom  <- sctype_score(scRNAseqData = scRNAseqData_ccRCC4_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_ccRCC5_custom  <- sctype_score(scRNAseqData = scRNAseqData_ccRCC5_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+# assign cell types
+es.max_Normal_custom  <- sctype_score(scRNAseqData = scRNAseqData_Normal_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = NULL)
+
+# merge by cluster
+cL_resutls_ccRCC2 <- do.call("rbind", lapply(unique(scRNAseqData_ccRCC2@meta.data$seurat_clusters), function(cl){
+    es.max.cl_ccRCC2 = sort(rowSums(es.max_ccRCC2_custom[ ,rownames(scRNAseqData_ccRCC2@meta.data[scRNAseqData_ccRCC2@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
+    head(data.frame(cluster = cl, type = names(es.max.cl_ccRCC2), scores = es.max.cl_ccRCC2, ncells = sum(scRNAseqData_ccRCC2@meta.data$seurat_clusters==cl)), 10)
+}))
+
+sctype_scores_ccRCC2 <- cL_resutls_ccRCC2 %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
+
+# set low-confident (low ScType score) clusters to "unknown"
+sctype_scores_ccRCC2$type[as.numeric(as.character(sctype_scores_ccRCC2$scores)) < sctype_scores_ccRCC2$ncells/4] <- "Unknown"
+print(sctype_scores_ccRCC2[,1:3])
+
+scRNAseqData_ccRCC2@meta.data$sctype_classification = ""
+for(j in unique(sctype_scores_ccRCC2$cluster)){
+  cl_type = sctype_scores_ccRCC2[sctype_scores_ccRCC2$cluster==j,]; 
+  scRNAseqData_ccRCC2@meta.data$sctype_classification[scRNAseqData_ccRCC2@meta.data$seurat_clusters == j] = as.character(cl_type$type[1])
+}
+
+
+
+colors2 = c("ccRCC" = "darkred",
+           "PTC" = "#ee99dd",
+           "StromalCells" = "#00aa99",
+           "EndothelialVascularCells" = "#001199",
+           "ImmuneCells" = "lightblue",
+           "StemCells"= "purple",
+           "MesenchymalCells" = "#DAA520",
+           "EMT" = "darkorange", 
+           "Unknown" = "gray")
+
+
+SCpubr::do_DimPlot(scRNAseqData_ccRCC2, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'sctype_classification', colors.use = colors2)      
+
+
+# ccRCC3
+cL_resutls_ccRCC3 <- do.call("rbind", lapply(unique(scRNAseqData_ccRCC3@meta.data$seurat_clusters), function(cl){
+    es.max.cl_ccRCC3 = sort(rowSums(es.max_ccRCC3_custom[ ,rownames(scRNAseqData_ccRCC3@meta.data[scRNAseqData_ccRCC3@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
+    head(data.frame(cluster = cl, type = names(es.max.cl_ccRCC3), scores = es.max.cl_ccRCC3, ncells = sum(scRNAseqData_ccRCC3@meta.data$seurat_clusters==cl)), 10)
+}))
+
+sctype_scores_ccRCC3 <- cL_resutls_ccRCC3 %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
+
+# set low-confident (low ScType score) clusters to "unknown"
+sctype_scores_ccRCC3$type[as.numeric(as.character(sctype_scores_ccRCC3$scores)) < sctype_scores_ccRCC3$ncells/4] <- "Unknown"
+print(sctype_scores_ccRCC3[,1:3])
+
+scRNAseqData_ccRCC3@meta.data$sctype_classification = ""
+for(j in unique(sctype_scores_ccRCC3$cluster)){
+  cl_type = sctype_scores_ccRCC3[sctype_scores_ccRCC3$cluster==j,]; 
+  scRNAseqData_ccRCC3@meta.data$sctype_classification[scRNAseqData_ccRCC3@meta.data$seurat_clusters == j] = as.character(cl_type$type[1])
+}
+
+
+SCpubr::do_DimPlot(scRNAseqData_ccRCC3, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'sctype_classification', colors.use = colors2)  
+
+# ccRCC4
+cL_resutls_ccRCC4 <- do.call("rbind", lapply(unique(scRNAseqData_ccRCC4@meta.data$seurat_clusters), function(cl){
+    es.max.cl_ccRCC4 = sort(rowSums(es.max_ccRCC4_custom[ ,rownames(scRNAseqData_ccRCC4@meta.data[scRNAseqData_ccRCC4@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
+    head(data.frame(cluster = cl, type = names(es.max.cl_ccRCC4), scores = es.max.cl_ccRCC4, ncells = sum(scRNAseqData_ccRCC4@meta.data$seurat_clusters==cl)), 10)
+}))
+
+sctype_scores_ccRCC4 <- cL_resutls_ccRCC4 %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
+
+# set low-confident (low ScType score) clusters to "unknown"
+sctype_scores_ccRCC4$type[as.numeric(as.character(sctype_scores_ccRCC4$scores)) < sctype_scores_ccRCC4$ncells/4] <- "Unknown"
+print(sctype_scores_ccRCC4[,1:3])
+
+
+scRNAseqData_ccRCC4@meta.data$sctype_classification = ""
+for(j in unique(sctype_scores_ccRCC4$cluster)){
+  cl_type = sctype_scores_ccRCC4[sctype_scores_ccRCC4$cluster==j,]; 
+  scRNAseqData_ccRCC4@meta.data$sctype_classification[scRNAseqData_ccRCC4@meta.data$seurat_clusters == j] = as.character(cl_type$type[1])
+}
+
+SCpubr::do_DimPlot(scRNAseqData_ccRCC4, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'sctype_classification', colors.use = colors2)  
+
+# ccRCC5
+cL_resutls_ccRCC5 <- do.call("rbind", lapply(unique(scRNAseqData_ccRCC5@meta.data$seurat_clusters), function(cl){
+    es.max.cl_ccRCC5 = sort(rowSums(es.max_ccRCC5_custom[ ,rownames(scRNAseqData_ccRCC5@meta.data[scRNAseqData_ccRCC5@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
+    head(data.frame(cluster = cl, type = names(es.max.cl_ccRCC5), scores = es.max.cl_ccRCC5, ncells = sum(scRNAseqData_ccRCC5@meta.data$seurat_clusters==cl)), 10)
+}))
+
+sctype_scores_ccRCC5 <- cL_resutls_ccRCC5 %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
+
+# set low-confident (low ScType score) clusters to "unknown"
+sctype_scores_ccRCC5$type[as.numeric(as.character(sctype_scores_ccRCC5$scores)) < sctype_scores_ccRCC5$ncells/4] <- "Unknown"
+print(sctype_scores_ccRCC5[,1:3])
+
+
+scRNAseqData_ccRCC5@meta.data$sctype_classification = ""
+for(j in unique(sctype_scores_ccRCC5$cluster)){
+  cl_type = sctype_scores_ccRCC5[sctype_scores_ccRCC5$cluster==j,]; 
+  scRNAseqData_ccRCC5@meta.data$sctype_classification[scRNAseqData_ccRCC5@meta.data$seurat_clusters == j] = as.character(cl_type$type[1])
+}
+
+SCpubr::do_DimPlot(scRNAseqData_ccRCC5, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'sctype_classification', colors.use = colors2)  
+
+# Normal
+cL_resutls_Normal <- do.call("rbind", lapply(unique(scRNAseqData_Normal@meta.data$seurat_clusters), function(cl){
+    es.max.cl_Normal = sort(rowSums(es.max_Normal_custom[ ,rownames(scRNAseqData_Normal@meta.data[scRNAseqData_Normal@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
+    head(data.frame(cluster = cl, type = names(es.max.cl_Normal), scores = es.max.cl_Normal, ncells = sum(scRNAseqData_Normal@meta.data$seurat_clusters==cl)), 10)
+}))
+
+sctype_scores_Normal <- cL_resutls_Normal %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
+
+# set low-confident (low ScType score) clusters to "unknown"
+sctype_scores_Normal$type[as.numeric(as.character(sctype_scores_Normal$scores)) < sctype_scores_Normal$ncells/4] <- "Unknown"
+print(sctype_scores_Normal[,1:3])
+
+
+scRNAseqData_Normal@meta.data$sctype_classification = ""
+for(j in unique(sctype_scores_Normal$cluster)){
+  cl_type = sctype_scores_Normal[sctype_scores_Normal$cluster==j,]; 
+  scRNAseqData_Normal@meta.data$sctype_classification[scRNAseqData_Normal@meta.data$seurat_clusters == j] = as.character(cl_type$type[1])
+}
+
+SCpubr::do_DimPlot(scRNAseqData_Normal, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'sctype_classification', colors.use = colors2)  
+```
+
+
