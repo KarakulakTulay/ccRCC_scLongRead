@@ -1,0 +1,699 @@
+---
+title: "Manuscript_5"
+author: "Tülay Karakulak"
+date: "2024-09-03"
+output: html_document
+---
+
+MDT and Switch Analysis - Figure 6
+
+```{r libraries, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(rmarkdown)
+library(harmony)
+library(Matrix)
+library(cowplot)
+library(RColorBrewer)
+library(viridis)
+library(ggpubr)
+theme_set(theme_cowplot())
+set.seed(12345)
+```
+
+
+```{r ReadIds}
+IsoMatch_All <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/BioRxiv/InputFiles/TamaIDs/PbIds_TamaIds.tsv', sep=' ', header=FALSE)
+colnames(IsoMatch_All) <- c('TamaID', 'Sample', 'PBid')
+head(IsoMatch_All)
+```
+
+
+```{r mergeAnnotations}
+isoform_annotations_normal_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_normal_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_2_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_2_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_3_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_3_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_4_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_4_filtered_w_CellNumber.RDS')
+isoform_annotations_ccRCC_5_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotation#isoform_annotations_ccRCC_5_filtered_w_CellNumber.RDS')
+
+isoform_annotations_normal_tama <- merge(isoform_annotations_normal_filtered, IsoMatch_All[IsoMatch_All$Sample == 'Normal',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC2_tama <- merge(isoform_annotations_ccRCC_2_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC2',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC3_tama <- merge(isoform_annotations_ccRCC_3_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC3',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC4_tama <- merge(isoform_annotations_ccRCC_4_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC4',], by.x = 'isoform', by.y='PBid')
+isoform_annotations_ccRCC5_tama <- merge(isoform_annotations_ccRCC_5_filtered, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC5',], by.x = 'isoform', by.y='PBid')
+```
+
+
+```{r readIsoforms}
+ccRCC_Marker_Annotations <- read.table( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/ccRCC_CellType_Revised.tsv', sep='\t', header = TRUE)
+ccRCC_Marker_Annotations$BC <- sapply(strsplit(ccRCC_Marker_Annotations$CellBarcode, "-"), function(x) x[1])
+head(ccRCC_Marker_Annotations)
+```
+
+
+```{r readSeuratFiles}
+scisoseq_file_normal_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_normal_filtered2.RDS')
+scisoseq_file_ccRCC2_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC2_filtered2.RDS')
+scisoseq_file_ccRCC3_filtered <-readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC3_filtered2.RDS')
+scisoseq_file_ccRCC4_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC4_filtered2.RDS')
+scisoseq_file_ccRCC5_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC5_filtered2.RDS')
+```
+
+
+```{r assignCells}
+# assign Cells
+scisoseq_file_ccRCC4_filtered$Status <- ifelse(scisoseq_file_ccRCC4_filtered$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC4' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
+
+scisoseq_file_ccRCC5_filtered$Status <- ifelse(scisoseq_file_ccRCC5_filtered$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC5' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
+
+scisoseq_file_ccRCC2_filtered$Status <- ifelse(scisoseq_file_ccRCC2_filtered$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC2' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
+
+scisoseq_file_ccRCC3_filtered$Status <- 'non-ccRCC' 
+scisoseq_file_normal_filtered$Status <- 'non-ccRCC' 
+```
+
+```{r mergeTama}
+seurat_annotations_ccRCC_2_tama <- merge(isoform_annotations_ccRCC2_tama[,c(1,5,6,7,8,51,52,53)], scisoseq_file_ccRCC2_filtered, by.y = 'pbid', by.x = 'isoform')
+
+seurat_annotations_ccRCC_4_tama <- merge(isoform_annotations_ccRCC4_tama[,c(1,5,6,7,8,51,52,53)], scisoseq_file_ccRCC4_filtered, by.y = 'pbid', by.x = 'isoform')
+
+seurat_annotations_ccRCC_5_tama <- merge(isoform_annotations_ccRCC5_tama[,c(1,5,6,7,8,51,52,53)], scisoseq_file_ccRCC5_filtered, by.y = 'pbid', by.x = 'isoform')
+
+seurat_annotations_ccRCC_3_tama <- merge(isoform_annotations_ccRCC3_tama[,c(1,5,6,7,8,51,52,53)], scisoseq_file_ccRCC3_filtered, by.y = 'pbid', by.x = 'isoform')
+
+seurat_annotations_normal_tama <- merge(isoform_annotations_normal_tama[,c(1,5,6,7,8,51,52,53)], scisoseq_file_normal_filtered, by.y = 'pbid', by.x = 'isoform')
+```
+
+# Contunie from here:
+## Seurat Objects
+1. Take the isoforms found in Seurat Objects and discard the rest
+2. Check how many of them found in Seurat Objects
+3. Assign Tama ID isoforms
+6. Calculate MDTs for DCI genes across cells and check the switch and make sankey plot out of them 
+
+```{r readSeuratObject,  message=FALSE}
+healthy_isoform <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/healthy_isoform_subset.RDS')
+ccRCC_2_isoform <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_2_isoform_subset.RDS')
+ccRCC_3_isoform <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_3_isoform_subset.RDS')
+ccRCC_4_isoform <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_4_isoform_subset.RDS')
+ccRCC_5_isoform <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_5_isoform_subset.RDS')
+```
+
+
+```{r SelectCounts}
+## Normal
+Normal_counts <- as.data.frame(healthy_isoform[["RNA"]]$counts)
+Normal_counts$isoform <- sapply(strsplit(rownames(healthy_isoform), ":"),`[`, 1)
+Normal_counts$associated_gene <- sapply(strsplit(rownames(healthy_isoform), ":"),`[`, 2)
+Normal_counts_tama <- merge(Normal_counts, IsoMatch_All[IsoMatch_All$Sample == 'Normal',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
+
+## ccRCC2
+ccRCC2_counts <- as.data.frame(ccRCC_2_isoform[["RNA"]]$counts)
+ccRCC2_counts$isoform <- sapply(strsplit(rownames(ccRCC_2_isoform), ":"),`[`, 1)
+ccRCC2_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_2_isoform), ":"),`[`, 2)
+ccRCC2_counts_tama <- merge(ccRCC2_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC2',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
+
+### ccRCC3
+ccRCC3_counts <- as.data.frame(ccRCC_3_isoform[["RNA"]]$counts)
+ccRCC3_counts$isoform <- sapply(strsplit(rownames(ccRCC_3_isoform), ":"),`[`, 1)
+ccRCC3_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_3_isoform), ":"),`[`, 2)
+ccRCC3_counts_tama <- merge(ccRCC3_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC3',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
+
+## ccRCC4
+ccRCC4_counts <- as.data.frame(ccRCC_4_isoform[["RNA"]]$counts)
+ccRCC4_counts$isoform <- sapply(strsplit(rownames(ccRCC_4_isoform), ":"),`[`, 1)
+ccRCC4_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_4_isoform), ":"),`[`, 2)
+ccRCC4_counts_tama <- merge(ccRCC4_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC4',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
+
+## ccRCC5
+ccRCC5_counts <- as.data.frame(ccRCC_5_isoform[["RNA"]]$counts)
+ccRCC5_counts$isoform <- sapply(strsplit(rownames(ccRCC_5_isoform), ":"),`[`, 1)
+ccRCC5_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_5_isoform), ":"),`[`, 2)
+ccRCC5_counts_tama <- merge(ccRCC5_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC5',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
+```
+
+
+```{r MDTCode}
+calculate_mdts <- function(data_matrix, cutoff, min_exp) {
+  out2 <- NULL
+  data_matrix <- data_matrix %>%
+    dplyr::group_by(.data$ENSG) %>%
+    dplyr::filter(dplyr::n() > 1)
+
+  for (eachcol in 3:ncol(data_matrix)) {
+    whole_data <- NULL
+    colname <- colnames(data_matrix)[eachcol]
+    new_data <- data_matrix %>%
+      dplyr::group_by(.data$ENSG) %>%
+      dplyr::arrange(desc(dplyr::across(all_of(colname))), .by_group = TRUE) %>%
+      dplyr::filter(dplyr::row_number() %in% 1:2) %>%
+      dplyr::select(1, 2, .data[[colname]]) %>%
+      as.data.frame()
+
+    ENSTs <- new_data[, c(1, 2)] %>%
+      dplyr::group_by(.data$ENSG) %>%
+      dplyr::mutate(group_index = 1:dplyr::n() %>% paste0("enst_", .)) %>%
+      tidyr::pivot_wider(names_from = group_index, names_prefix = "ENST_", values_from=ENST,  names_sep = "_")
+
+    TPMs <- new_data[, c(2, 3)] %>%
+      dplyr::group_by(.data$ENSG) %>%
+      dplyr::mutate(group_index = 1:dplyr::n() %>% paste0("tpm_", .)) %>%
+      tidyr::pivot_wider(names_from = group_index, names_prefix = "TPM", values_from=colname,  names_sep = "_")
+
+    whole_data <- cbind(colname, ENSTs, TPMs[, c(2, 3)])
+
+    colnames(whole_data) <- c("SampleID", "ENSG", "ENST1", "ENST2", "TPM1", "TPM2")
+
+    whole_data$rate <- ifelse(whole_data$TPM2 == 0 | whole_data$ENST2 == "NA", whole_data$TPM1, whole_data$TPM1 / whole_data$TPM2)
+
+    out <- whole_data %>% dplyr::filter(.data$TPM1 >= min_exp & .data$rate >= cutoff)
+    out2 <- rbind(out2, out)
+  }
+
+  return(as.data.frame(out2))
+}
+```
+
+
+# Most Dominant Transcripts across Cells
+```{r ccRCCsamples}
+# MDTs ccRCC2+
+ccRCC2_counts_pos <- ccRCC2_counts_tama[, colnames(ccRCC2_counts_tama) %in% ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC2' & ccRCC_Marker_Annotations$CellType == 'ccRCC','CellBarcode']]
+ccRCC2_counts_pos$ENST <- ccRCC2_counts_tama$TamaID
+ccRCC2_counts_pos$ENSG <- ccRCC2_counts_tama$associated_gene
+ccRCC2_counts_pos <- ccRCC2_counts_pos %>% dplyr::select(ENST, ENSG, everything())
+ccRCC2_mdts_pos <- calculate_mdts(ccRCC2_counts_pos, 1, 1)
+ccRCC2_mdts_pos_filt <- ccRCC2_mdts_pos[ccRCC2_mdts_pos$TPM2 != ccRCC2_mdts_pos$TPM1, ]
+ccRCC2_mdts_pos_filt2 <- ccRCC2_mdts_pos_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+
+# MDTs ccRCC2-
+ccRCC2_counts_neg <- ccRCC2_counts_tama[, colnames(ccRCC2_counts_tama) %in% ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC2' & ccRCC_Marker_Annotations$CellType == 'non-ccRCC','CellBarcode']]
+ccRCC2_counts_neg$ENST <- ccRCC2_counts_tama$TamaID
+ccRCC2_counts_neg$ENSG <- ccRCC2_counts_tama$associated_gene
+ccRCC2_counts_neg <- ccRCC2_counts_neg %>% dplyr::select(ENST, ENSG, everything())
+ccRCC2_mdts_neg <- calculate_mdts(ccRCC2_counts_neg, 1, 1)
+ccRCC2_mdts_neg_filt <- ccRCC2_mdts_neg[ccRCC2_mdts_neg$TPM2 != ccRCC2_mdts_neg$TPM1, ]
+ccRCC2_mdts_neg_filt2 <- ccRCC2_mdts_neg_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+
+
+# MDT ccRCC4 + 
+ccRCC4_counts_pos <- ccRCC4_counts_tama[, colnames(ccRCC4_counts_tama) %in% ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC4' & ccRCC_Marker_Annotations$CellType == 'ccRCC','CellBarcode']]
+ccRCC4_counts_pos$ENST <- ccRCC4_counts_tama$TamaID
+ccRCC4_counts_pos$ENSG <- ccRCC4_counts_tama$associated_gene
+ccRCC4_counts_pos <- ccRCC4_counts_pos %>% dplyr::select(ENST, ENSG, everything())
+ccRCC4_mdts_pos <- calculate_mdts(ccRCC4_counts_pos, 1, 1)
+ccRCC4_mdts_pos_filt <- ccRCC4_mdts_pos[ccRCC4_mdts_pos$TPM2 != ccRCC4_mdts_pos$TPM1, ]
+ccRCC4_mdts_pos_filt2 <- ccRCC4_mdts_pos_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+
+# MDT ccRCC4 -
+ccRCC4_counts_neg <- ccRCC4_counts_tama[, colnames(ccRCC4_counts_tama) %in% ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC4' & ccRCC_Marker_Annotations$CellType == 'non-ccRCC','CellBarcode']]
+ccRCC4_counts_neg$ENST <- ccRCC4_counts_tama$TamaID
+ccRCC4_counts_neg$ENSG <- ccRCC4_counts_tama$associated_gene
+ccRCC4_counts_neg <- ccRCC4_counts_neg %>% dplyr::select(ENST, ENSG, everything())
+ccRCC4_mdts_neg <- calculate_mdts(ccRCC4_counts_neg, 1, 1)
+ccRCC4_mdts_neg_filt <- ccRCC4_mdts_neg[ccRCC4_mdts_neg$TPM2 != ccRCC4_mdts_neg$TPM1, ]
+ccRCC4_mdts_neg_filt2 <- ccRCC4_mdts_neg_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+
+# MDT ccRCC5 + 
+ccRCC5_counts_pos <- ccRCC5_counts_tama[, colnames(ccRCC5_counts_tama) %in% ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC5' & ccRCC_Marker_Annotations$CellType == 'ccRCC','CellBarcode']]
+ccRCC5_counts_pos$ENST <- ccRCC5_counts_tama$TamaID
+ccRCC5_counts_pos$ENSG <- ccRCC5_counts_tama$associated_gene
+ccRCC5_counts_pos <- ccRCC5_counts_pos %>% dplyr::select(ENST, ENSG, everything())
+ccRCC5_mdts_pos <- calculate_mdts(ccRCC5_counts_pos, 1, 1)
+ccRCC5_mdts_pos_filt <- ccRCC5_mdts_pos[ccRCC5_mdts_pos$TPM2 != ccRCC5_mdts_pos$TPM1, ]
+ccRCC5_mdts_pos_filt2 <- ccRCC5_mdts_pos_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+
+# MDT ccRCC5 -
+ccRCC5_counts_neg <- ccRCC5_counts_tama[, colnames(ccRCC5_counts_tama) %in% ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC5' & ccRCC_Marker_Annotations$CellType == 'non-ccRCC','CellBarcode']]
+ccRCC5_counts_neg$ENST <- ccRCC5_counts_tama$TamaID
+ccRCC5_counts_neg$ENSG <- ccRCC5_counts_tama$associated_gene
+ccRCC5_counts_neg <- ccRCC5_counts_neg %>% dplyr::select(ENST, ENSG, everything())
+ccRCC5_mdts_neg <- calculate_mdts(ccRCC5_counts_neg, 1, 1)
+ccRCC5_mdts_neg_filt <- ccRCC5_mdts_neg[ccRCC5_mdts_neg$TPM2 != ccRCC5_mdts_neg$TPM1, ]
+ccRCC5_mdts_neg_filt2 <- ccRCC5_mdts_neg_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+
+#### Not sure if we should include ccRCC3 and Normal? 
+## MDT ccRCC3
+ccRCC3_counts_pos <- ccRCC3_counts_tama
+ccRCC3_counts_pos$ENST <- ccRCC3_counts_tama$TamaID
+ccRCC3_counts_pos$ENSG <- ccRCC3_counts_tama$associated_gene
+ccRCC3_counts_pos2 <- ccRCC3_counts_pos[,3:ncol(ccRCC3_counts_pos)] %>% dplyr::select(ENST, ENSG, everything())
+ccRCC3_mdts_pos <- calculate_mdts(ccRCC3_counts_pos2, 1, 1)
+ccRCC3_mdts_pos_filt <- ccRCC3_mdts_pos[ccRCC3_mdts_pos$TPM2 != ccRCC3_mdts_pos$TPM1, ]
+ccRCC3_mdts_pos_filt2 <- ccRCC3_mdts_pos_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+##
+### MDT Normal
+Normal_counts_pos <- Normal_counts_tama
+Normal_counts_pos$ENST <- Normal_counts_tama$TamaID
+Normal_counts_pos$ENSG <- Normal_counts_tama$associated_gene
+Normal_counts_pos2 <- Normal_counts_pos[,3:ncol(Normal_counts_pos)] %>% dplyr::select(ENST, ENSG, everything())
+Normal_mdts_pos <- calculate_mdts(Normal_counts_pos2, 1, 1)
+Normal_mdts_pos_filt <- Normal_mdts_pos[Normal_mdts_pos$TPM2 != Normal_mdts_pos$TPM1, ]
+Normal_mdts_pos_filt2 <- Normal_mdts_pos_filt %>% dplyr::filter(TPM1 == 1 | rate >=2)
+```
+
+
+```{r saveRDS}
+saveRDS(ccRCC5_mdts_neg_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_neg_tama.RDS')
+saveRDS(ccRCC4_mdts_neg_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_neg_tama.RDS')
+saveRDS(ccRCC2_mdts_neg_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_neg_tama.RDS')
+saveRDS(ccRCC5_mdts_pos_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_tama.RDS')
+saveRDS(ccRCC4_mdts_pos_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_tama.RDS')
+saveRDS(ccRCC2_mdts_pos_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_tama.RDS')
+saveRDS(Normal_mdts_pos_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/Normal_mdts_pos_tama.RDS')
+saveRDS(ccRCC3_mdts_pos_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC3_mdts_pos_tama.RDS')
+```
+
+
+```{r readMDTs}
+ccRCC5_mdts_neg <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_neg_tama.RDS')
+ccRCC4_mdts_neg <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_neg_tama.RDS')
+ccRCC2_mdts_neg <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_neg_tama.RDS')
+ccRCC5_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_tama.RDS')
+ccRCC4_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_tama.RDS')
+ccRCC2_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_tama.RDS')
+Normal_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/Normal_mdts_pos_tama.RDS')
+ccRCC3_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC3_mdts_pos_tama.RDS')
+```
+
+
+```{r switch_analysis}
+calculate_switches <- function(cancer_ori, gtex_ori, exp_values_pcawg, exp_values_gtex, cutoff, cutoff_rate, cutoff_other_MDTs) {
+  cancer <- cancer_ori %>% dplyr::filter(.data$rate >= cutoff_rate)
+  gtex <- gtex_ori %>% dplyr::filter(.data$rate >= cutoff_rate)
+  dMDT <- data.frame(SampleID = character(),
+                     ENSG = character(),
+                     dMDT = character(),
+                     ENST2_cancer = character(),
+                     TPM1_cancer = character(),
+                     TPM2_cancer = character(),
+                     enrichment = numeric(),
+                     p_value = numeric(),
+                     relative_cancer_exp = numeric(),
+                     relative_gtex_exp = numeric(),
+                     MDT_GTEx = character())
+  dMDT3 <- data.frame(SampleID = character(),
+                      ENSG = character(),
+                      dMDT = character(),
+                      ENST2_cancer = character(),
+                      TPM1_cancer = character(),
+                      TPM2_cancer = character(),
+                      enrichment = numeric(),
+                      p_value = numeric(),
+                      relative_cancer_exp = numeric(),
+                      relative_gtex_exp = numeric(),
+                      MDT_GTEx = character())
+  sample_number_gtex <- length(unique(gtex$SampleID)) # number of GTEx sample
+
+  potential_cMDT_lists <- unique(cancer$ENST1)
+
+  for (i in potential_cMDT_lists) {
+    statistical_test2 <- NULL
+    statistical_test <- NULL
+    gtex_exp_values_of_MDT <- NULL
+    cancer_exp_values_of_MDT <- NULL
+    MDT_highest_num <- NULL
+    sequence_of_MDT <- NULL
+    MDT_in_sample <- i
+    data_of_MDT <- cancer %>% dplyr::filter(.data$ENST1 == MDT_in_sample)
+    gene_id_sample <- data_of_MDT[1, 2]
+    sample_ids <- data_of_MDT[, 1]
+    l <- NULL
+
+    MDT_list_in_gtex <- gtex %>% dplyr::filter(.data$ENST1 != MDT_in_sample & .data$ENSG == gene_id_sample)
+    unique_gtex_ensts <- unique(MDT_list_in_gtex$ENST1)
+
+
+    MDT_highest <- MDT_list_in_gtex %>%
+      dplyr::group_by(.data$ENST1) %>%
+      dplyr::count() %>%
+      dplyr::arrange(desc(n)) %>% ungroup() %>% dplyr::summarise(all = sum(n))
+    
+    MDT_highest_num <- as.numeric(MDT_highest$all)
+
+    unique_gtex_ensts_after_remove_redundant <- unique(MDT_list_in_gtex$ENST1)
+
+    percent_of_MDT_in_GTEx_samples <- MDT_highest_num / sample_number_gtex * 100
+
+    if (!is.na(percent_of_MDT_in_GTEx_samples)) {
+      if (percent_of_MDT_in_GTEx_samples >= cutoff_other_MDTs) {
+        number_of_MDT_in_gtex <- length(gtex[gtex$ENST1 == MDT_in_sample, 1])
+        percent_of_MDT_in_gtex <- number_of_MDT_in_gtex / sample_number_gtex * 100
+
+        if (percent_of_MDT_in_gtex <= cutoff) {
+          cancer_relative_exp_of_MDT <- (exp_values_pcawg %>% dplyr::filter(.data$ENST == MDT_in_sample))[, sample_ids] / colSums(as.data.frame(exp_values_pcawg[exp_values_pcawg$ENSG == gene_id_sample, sample_ids]))
+
+          gtex_relative_exp_of_MDT <- as.numeric((exp_values_gtex %>% dplyr::filter(.data$ENST == MDT_in_sample))[, 3:ncol(exp_values_gtex)] / colSums(exp_values_gtex[exp_values_gtex$ENSG == gene_id_sample, 3:ncol(exp_values_gtex)]))
+
+        #  median_gtex_relative_exp_of_MDT <- median(as.numeric(as.vector(gtex_relative_exp_of_MDT)), na.rm = TRUE)
+
+          median_gtex_relative_exp_of_MDT <- median(as.numeric(as.vector(gtex_relative_exp_of_MDT)), na.rm = TRUE)
+
+        if (is.data.frame(cancer_relative_exp_of_MDT)) {
+          # If it has a single column, extract it as a vector
+          if (ncol(cancer_relative_exp_of_MDT) == 1) {
+            cancer_values <- cancer_relative_exp_of_MDT[[1]]
+          } else if (nrow(cancer_relative_exp_of_MDT) == 1) {
+            # If it has a single row, extract it as a vector
+            cancer_values <- unlist(cancer_relative_exp_of_MDT[1, ])
+          } else {
+            stop("the data should be a single-column or single-row data frame.")
+          }
+        } else {
+          # If it's not a data frame, assume it's a single value
+          cancer_values <- as.vector(cancer_relative_exp_of_MDT)
+        }
+
+        statistical_test <- sapply(cancer_values, function(i) BSDA::SIGN.test(gtex_relative_exp_of_MDT, alternative = "less", md = i))["p.value", ]
+
+         # statistical_test <- sapply(1:nrow(t(cancer_relative_exp_of_MDT)), function(i) BSDA::SIGN.test(gtex_relative_exp_of_MDT, alternative = "less", md = i))["p.value", ]
+
+          data_of_MDT_w_statistics <- cbind(data_of_MDT, unlist(statistical_test), t(cancer_relative_exp_of_MDT), replicate(nrow(data_of_MDT), median_gtex_relative_exp_of_MDT))
+
+          colnames(data_of_MDT_w_statistics) <- c("SampleID", "ENSG", "ENST1_cancer", "ENST2_cancer", "TPM1_cancer", "TPM2_cancer", "enrichment", "p_value", "relative_cancer_exp", "relative_gtex_exp")
+
+          data_of_MDT_w_statistics_filtered <- data_of_MDT_w_statistics %>%
+            dplyr::filter(.data$p_value <= 0.05) %>%
+            dplyr::filter(.data$relative_cancer_exp > median_gtex_relative_exp_of_MDT)
+
+          if (isTRUE(!is.na(data_of_MDT_w_statistics_filtered$SampleID[1]))) {
+            l <- cbind(data_of_MDT_w_statistics_filtered, replicate(nrow(data_of_MDT_w_statistics_filtered), paste(unique_gtex_ensts_after_remove_redundant, collapse = ",")))
+
+            colnames(l) <- c("SampleID", "ENSG", "dMDT", "ENST2_cancer", "TPM1_cancer", "TPM2_cancer", "enrichment", "p_value", "relative_cancer_exp", "relative_gtex_exp", "MDT_GTEx")
+            dMDT <- data.table::rbindlist(list(dMDT, l))
+          }
+        }
+      }
+    }
+  }
+
+  if(nrow(dMDT) != 0){
+
+    colnames(dMDT) <- c("SampleID", "ENSG", "dMDT", "ENST2_cancer", "TPM1_cancer", "TPM2_cancer", "enrichment", "p_value", "relative_cancer_exp", "relative_gtex_exp", "MDT_GTEx")
+    dMDT2 <- dMDT[order(p_value)]
+    dMDT3 <- cbind(dMDT2, stats::p.adjust(dMDT2$p_value, method = "BH"))
+
+  } else {
+      dMDT3 <- print('There is no MDT switching events between datasets')
+    }
+  return(dMDT3)
+}
+```
+
+remove redundant transcripts if they map to the same associated_transcript
+remove cMDTs found in any normal
+
+```{r sampleBasedSwitch}
+# sample based
+ccRCC2_mdts_pos_neg_switch <- calculate_switches(cancer_ori = ccRCC2_mdts_pos_filt2, gtex_ori = ccRCC2_mdts_neg_filt2, cutoff_rate = 1, cutoff = 0, exp_values_pcawg = ccRCC2_counts_pos, exp_values_gtex = ccRCC2_counts_neg, cutoff_other_MDTs = 20) # 34761    12
+
+ccRCC4_mdts_pos_neg_switch <- calculate_switches(cancer_ori = ccRCC4_mdts_pos_filt2, gtex_ori = ccRCC4_mdts_neg_filt2, cutoff_rate = 1, cutoff = 0, exp_values_pcawg = ccRCC4_counts_pos, exp_values_gtex = ccRCC4_counts_neg, cutoff_other_MDTs = 20) # 428  12
+
+ccRCC5_mdts_pos_neg_switch <- calculate_switches(cancer_ori = ccRCC5_mdts_pos_filt2, gtex_ori = ccRCC5_mdts_neg_filt2, cutoff_rate = 1, cutoff = 0, exp_values_pcawg = ccRCC5_counts_pos, exp_values_gtex = ccRCC5_counts_neg, cutoff_other_MDTs = 20) # 10932    12
+```
+
+```{r additionalFiltering}
+### additional filtering
+ccRCC2_mdts_pos_neg_switch_remaining <- ccRCC2_mdts_pos_neg_switch[!ccRCC2_mdts_pos_neg_switch$dMDT %in% c(Normal_mdts_pos$ENST1, ccRCC3_mdts_pos$ENST1), ] # 10484    12
+ccRCC2_mdts_pos_neg_switch_remaining_filter <- ccRCC2_mdts_pos_neg_switch_remaining %>% dplyr::filter(TPM1_cancer == 1 | enrichment >= 2) # 10484    12
+
+ccRCC5_mdts_pos_neg_switch_remaining <- ccRCC5_mdts_pos_neg_switch[!ccRCC5_mdts_pos_neg_switch$dMDT %in% c(Normal_mdts_pos$ENST1, ccRCC3_mdts_pos$ENST1), ] # 6218   12
+ccRCC5_mdts_pos_neg_switch_remaining_filter <- ccRCC5_mdts_pos_neg_switch_remaining %>% 
+dplyr::filter(TPM1_cancer == 1 | enrichment >= 2)  # 6218   12
+
+ccRCC4_mdts_pos_neg_switch_remaining <- ccRCC4_mdts_pos_neg_switch[!ccRCC4_mdts_pos_neg_switch$dMDT %in% c(Normal_mdts_pos$ENST1, ccRCC3_mdts_pos$ENST1), ] #  319  12
+
+ccRCC4_mdts_pos_neg_switch_remaining_filter <- ccRCC4_mdts_pos_neg_switch_remaining %>%
+  dplyr::filter(TPM1_cancer == 1 | enrichment >= 2) # 319  12
+```
+
+
+```{r FilterSameAssociatetedTranscript}
+library(tidyr)
+ccRCC4_switches_split <- ccRCC4_mdts_pos_neg_switch_remaining %>%
+  separate_rows(MDT_GTEx, sep = ",")
+
+ccRCC2_switches_split <- ccRCC2_mdts_pos_neg_switch_remaining %>%
+  separate_rows(MDT_GTEx, sep = ",")
+
+ccRCC5_switches_split <- ccRCC5_mdts_pos_neg_switch_remaining %>%
+  separate_rows(MDT_GTEx, sep = ",")
+  
+
+filter_same_transc <- function(switches, annotation) {
+  remove_rows <- c()
+  for(each_row in 1:nrow(switches)) {
+  
+    dMDT_in_row <- switches[each_row, 'dMDT']$dMDT
+    MDT_in_row <- switches[each_row, 'MDT_GTEx']$MDT_GTEx
+    
+    dMDT_transcript <- annotation[annotation$TamaID == dMDT_in_row, 'associated_transcript']
+    MDT_transcript <- annotation[annotation$TamaID == MDT_in_row, 'associated_transcript']
+    if (any(dMDT_transcript %in% MDT_transcript)) {
+      
+      remove_rows <- c(remove_rows, each_row)
+    }
+    
+  }
+    
+   switches_filtered <- switches[-remove_rows,]
+   return(switches_filtered)
+  
+}  
+
+ccRCC4_switches_filtered <- filter_same_transc(ccRCC4_switches_split, isoform_annotations_ccRCC4_tama) # 2948   12
+ccRCC2_switches_filtered <- filter_same_transc(ccRCC2_switches_split, isoform_annotations_ccRCC2_tama) # 18153    13
+ccRCC5_switches_filtered <- filter_same_transc(ccRCC5_switches_split, isoform_annotations_ccRCC5_tama) # 32164    12
+``` 
+
+
+```{r saveRDSSwitches}
+saveRDS(ccRCC2_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_neg_switch_tama.RDS')
+
+saveRDS(ccRCC4_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_neg_switch_tama.RDS')
+
+saveRDS(ccRCC5_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_neg_switch_tama.RDS')
+
+
+ccRCC2_switches_filtered$Cohort <- 'ccRCC2'
+ccRCC4_switches_filtered$Cohort <- 'ccRCC4'
+ccRCC5_switches_filtered$Cohort <- 'ccRCC5'
+All_Switches <- rbind(ccRCC2_switches_filtered, ccRCC4_switches_filtered, ccRCC5_switches_filtered)
+```
+
+
+```{r SummarizeData}
+ccRCC2_switches <- ccRCC2_switches_filtered %>% dplyr::select(dMDT, ENSG, MDT_GTEx, SampleID) %>% dplyr::distinct() %>% dplyr::group_by(dMDT, ENSG, MDT_GTEx) %>% dplyr::distinct() %>% dplyr::summarise(count = n())  %>% ungroup() %>% dplyr::select(dMDT, ENSG, MDT_GTEx, count) %>% group_by(dMDT, ENSG, count) %>% dplyr::distinct() %>% summarize(MDT_GTEx = paste(unique(MDT_GTEx), collapse = ", "), .groups = 'drop') %>%  dplyr::arrange(desc(count))
+ccRCC2_switches
+
+ccRCC4_switches <- ccRCC4_switches_filtered %>% dplyr::select(dMDT, ENSG, MDT_GTEx, SampleID) %>% dplyr::distinct() %>% dplyr::group_by(dMDT, ENSG, MDT_GTEx) %>% dplyr::summarise(count = n())  %>% ungroup() %>% dplyr::select(dMDT, ENSG, MDT_GTEx, count) %>% group_by(dMDT, ENSG, count) %>% dplyr::distinct() %>% summarize(MDT_GTEx = paste(unique(MDT_GTEx), collapse = ", "), .groups = 'drop') %>%  dplyr::arrange(desc(count))
+ccRCC4_switches
+
+ccRCC5_switches <- ccRCC5_switches_filtered %>% dplyr::select(dMDT, ENSG, MDT_GTEx, SampleID) %>% dplyr::distinct() %>% dplyr::group_by(dMDT, ENSG, MDT_GTEx) %>% dplyr::summarise(count = n()) %>% ungroup() %>% dplyr::select(dMDT, ENSG, MDT_GTEx, count) %>% group_by(dMDT, ENSG, count) %>% dplyr::distinct() %>% summarize(MDT_GTEx = paste(unique(MDT_GTEx), collapse = ", "), .groups = 'drop') %>%  dplyr::arrange(desc(count))
+
+ccRCC5_switches$Cohort <- 'ccRCC5'
+ccRCC4_switches$Cohort <- 'ccRCC4'
+ccRCC2_switches$Cohort <- 'ccRCC2'
+
+colnames(ccRCC2_switches) <- c('cMDT_TamaID', 'GeneName', 'CellNumber', 'MDT_in_Normal', 'Cohort')
+colnames(ccRCC4_switches) <- c('cMDT_TamaID', 'GeneName', 'CellNumber', 'MDT_in_Normal', 'Cohort')
+colnames(ccRCC5_switches) <- c('cMDT_TamaID', 'GeneName', 'CellNumber', 'MDT_in_Normal', 'Cohort')
+
+ccRCC_All_Switches <- rbind(ccRCC2_switches, ccRCC4_switches, ccRCC5_switches)
+
+write.table(ccRCC_All_Switches, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/SupplementaryTables/SupplementaryFile_3.tsv', quote = FALSE, row.names = FALSE, sep = '\t')
+```
+
+
+
+```{r plotExp}
+library(tidyr)
+data_filtered_pos <- ccRCC2_counts_pos %>%
+  filter(ENST %in% c("G2457.81", "G2457.98")) %>%
+  pivot_longer(
+    cols = -c(ENST, ENSG),
+    names_to = "Cell",
+    values_to = "Count"
+  )
+
+ggplot(data_filtered_pos, aes(x = ENST, y = Count)) +
+  geom_boxplot() + geom_jitter(width = 0.2, height = 0, size = 2, alpha = 0.6) +
+  theme_classic() + 
+  labs(title = "Counts for G2457.81 and G2457.98",
+       x = "ENST",
+       y = "Counts")
+
+data_filtered_pos_onlyswitch <- ccRCC2_counts_pos[, colnames(ccRCC2_counts_pos) %in% c('ENST', 'ENSG',ccRCC2_mdts_pos_neg_switch_remaining[ccRCC2_mdts_pos_neg_switch_remaining$dMDT == 'G2457.81','SampleID']$SampleID)] %>%
+  filter(ENST %in% c("G2457.81", "G2457.98")) %>%
+  pivot_longer(
+    cols = -c(ENST, ENSG),
+    names_to = "Cell",
+    values_to = "Count"
+  )
+
+ggplot(data_filtered_pos_onlyswitch, aes(x = ENST, y = Count)) +
+  geom_boxplot() + geom_jitter(width = 0.2, height = 0, size = 2, alpha = 0.6) +
+  theme_classic() + scale_fill_manual(values =  c("lightblue", "lightyellow"))  +
+  labs(title = "Counts for G2457.81 and G2457.98",
+       x = "ENST",
+       y = "Counts")
+
+data_filtered_neg <- ccRCC2_counts_neg %>%
+  filter(ENST %in% c("G2457.81", "G2457.98")) %>%
+  pivot_longer(
+    cols = -c(ENST, ENSG),
+    names_to = "Cell",
+    values_to = "Count"
+  )
+
+ggplot(data_filtered_neg, aes(x = ENST, y = Count)) +
+  geom_boxplot() + geom_jitter(width = 0.2, height = 0, size = 2, alpha = 0.6) +
+  theme_classic() + scale_fill_manual(values =  c("lightblue", "lightyellow"))  +
+  labs(title = "Counts for G2457.81 and G2457.98",
+       x = "ENST",
+       y = "Counts")
+```
+
+
+```{r plot}
+Normal_mdts_pos_filt2$Group <- 'Normal'
+ccRCC3_mdts_pos_filt2$Group <- 'ccRCC3'
+ccRCC2_mdts_pos_filt2$Group <- 'ccRCC2_ccRCC'
+ccRCC4_mdts_pos_filt2$Group <- 'ccRCC4_ccRCC'
+ccRCC5_mdts_pos_filt2$Group <- 'ccRCC5_ccRCC'
+ccRCC5_mdts_neg_filt2$Group <- 'ccRCC5_nonccRCC'
+ccRCC4_mdts_neg_filt2$Group <- 'ccRCC4_nonccRCC'
+ccRCC2_mdts_neg_filt2$Group <- 'ccRCC2_nonccRCC'
+
+ccRCC_mdts_pos_neg <- rbind(ccRCC2_mdts_neg_filt2, ccRCC2_mdts_pos_filt2, ccRCC4_mdts_neg_filt2, ccRCC4_mdts_pos_filt2, ccRCC5_mdts_neg_filt2, ccRCC5_mdts_pos_filt2, ccRCC3_mdts_pos_filt2, ccRCC2_mdts_pos, Normal_mdts_pos_filt2)
+
+count_data_mdt <- ccRCC_mdts_pos_neg %>%
+  group_by(SampleID, Group) %>%
+  summarise(MDT_gene_count = n())
+
+boxplot_figure6A <- ggplot(count_data_mdt, aes(x=Group, y=MDT_gene_count, fill = Group)) + 
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme_classic() + scale_fill_manual(values = c("#10586BFA", "#10586BFA", "#10586BFA", "#10586BFA", "#10586BFA", "#10586BFA", "#10586BFA", "#10586BFA")) +
+  xlab("SampleID") + 
+  ylab("Number of MDTs") +
+  ggtitle("Distribution of Number of Gene with MDT per Cell")
+
+
+ccRCC2_switches_filtered$Group <- 'ccRCC2'
+ccRCC4_switches_filtered$Group <- 'ccRCC4'
+ccRCC5_switches_filtered$Group <- 'ccRCC5'
+
+ccRCC_mdts_pos_neg_switch_newMethod <- rbind(ccRCC2_switches_filtered, ccRCC4_switches_filtered, ccRCC5_switches_filtered)
+
+count_data <- ccRCC_mdts_pos_neg_switch_newMethod %>% dplyr::select(SampleID, ENSG, dMDT, Group) %>% dplyr::distinct() %>%
+  group_by(SampleID, Group) %>%
+  summarise(dMDT_count = n_distinct(dMDT))
+
+# Create the box plot with ggplot2
+boxplot_figure6B <- ggplot(count_data, aes(x=Group, y=dMDT_count, fill = Group)) + 
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme_classic() + scale_fill_manual(values = c("#10586BFA", "#10586BFA", "#10586BFA"))+
+  xlab("SampleID") + 
+  ylab("Number of dMDTs") +
+  ggtitle("Distribution of Number of cancer-specific MDTs per Cell")
+
+boxplot_figure6B
+```
+
+
+```{r selectgenes}
+## venNDiagram
+ensg_lists <- list(ccRCC2 = ccRCC2_switches_filtered$ENSG, ccRCC4 = ccRCC4_switches_filtered$ENSG, ccRCC5 = ccRCC5_switches_filtered$ENSG)
+dMDT_lists <- list(ccRCC2 = ccRCC2_switches_filtered$dMDT, ccRCC4 = ccRCC4_switches_filtered$dMDT, ccRCC5 = ccRCC5_switches_filtered$dMDT)
+
+library(ggVennDiagram)
+ggVennDiagram(ensg_lists, label_alpha = 0) + scale_fill_gradient(low="grey90",high = "red")
+
+ggVennDiagram(dMDT_lists, label_alpha = 0) + scale_fill_gradient(low="grey90",high = "red")
+```
+
+
+```{r ORAofMDTGenes}
+MDT_genes_ccRCC2_ccRCC4_ccRCC5 <- c(intersect(ccRCC2_switches_filtered$ENSG, ccRCC4_switches_filtered$ENSG), intersect(ccRCC2_switches_filtered$ENSG, ccRCC5_switches_filtered$ENSG), intersect(ccRCC4_switches_filtered$ENSG, ccRCC5_switches_filtered$ENSG))
+
+MDT_genes_ccRCC2_ccRCC4_ccRCC5_onlyIntr <- intersect(intersect(ccRCC2_switches_filtered$ENSG, ccRCC4_switches_filtered$ENSG), ccRCC5_switches_filtered$ENSG)
+#MDT_genes_ccRCC2_ccRCC5_df <- read.csv('/Users/tulaykarakulak/Desktop/MDT_genes_ccRCC2_ccRCC5.tsv', header = TRUE)
+#MDT_genes_ccRCC2_ccRCC5 <- MDT_genes_ccRCC2_ccRCC5_df
+library(clusterProfiler)
+library(msigdbr)
+library(ReactomePA)
+library(enrichplot)
+
+m_df <- msigdbr(species = "Homo sapiens")  %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+m_t2g <- msigdbr(species = "Homo sapiens", category = "C6") %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+m_H <- msigdbr(species = "Homo sapiens", category = "H") %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+m_c4 <- msigdbr(species = "Homo sapiens", category = "C4") %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+eg = bitr(MDT_genes_ccRCC2_ccRCC4_ccRCC5, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+eg_intersect = bitr(MDT_genes_ccRCC2_ccRCC4_ccRCC5_onlyIntr, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+
+
+em <- enricher(eg$ENTREZID, TERM2GENE=m_t2g)
+eH <- enricher(eg$ENTREZID, TERM2GENE=m_H)
+reactomePathway_em_ccRCC2_5 <- enrichPathway(gene=as.numeric(eg$ENTREZID), pvalueCutoff = 0.05, readable=TRUE)
+
+ego <- enrichGO(gene          = eg$ENTREZID,
+                OrgDb         = org.Hs.eg.db,
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05,
+                readable      = TRUE)
+
+WP <- enrichWP(eg$ENTREZID, organism = "Homo sapiens") 
+
+# plot
+dotplot(WP, showCategory = 10)
+dotplot(em, showCategory=10) 
+dotplot(eH, showCategory=10) 
+dotplot(ego, showCategory=10) # this is put as the last figure 5c
+dotplot(reactomePathway_em_ccRCC2_5, showCategory=9) 
+```
+
+Transcript Structure
+```{r ggtranscript}
+library(ggplot2)
+library(ggtranscript)
+
+annotation_gff_ccRCC2 <- read.csv('/Users/tulaykarakulak/Documents/PhD/Projects/ccRCC_Sc_lrSequencing/070923_Final/p28443_o31598_2_threecells_combined/o31598_SMRTLink_IsoSeq/p28443_o31598_2_threecells_combined/restructured.gff', sep='\t', header = FALSE)
+
+colnames(annotation_gff_ccRCC2) <- c('seqnames', 'start', 'end', 'strand', 'type', 'gene_name','transcript_name')
+```
+
+```{r Switch}
+#"G2457.81", "G2457.98"
+APH1A_annotations_ccRCC2 <- annotation_gff_ccRCC2[annotation_gff_ccRCC2$gene_name == 'PB.8161',] %>% dplyr::filter(type == 'exon')
+
+APH1A_annotations_ccRCC2$Sample <- 'ccRCC2'
+
+APH1A_annotations_ccRCC2_subset <- APH1A_annotations_ccRCC2 %>% dplyr::filter(transcript_name %in% c("PB.8161.7", "PB.8161.6")) 
+
+APH1A_annotations_ccRCC2_subset %>%
+    ggplot(aes(
+        xstart = start,
+        xend = end,
+        y = transcript_name
+    )) + geom_range(
+      aes(fill = type)
+    ) +
+    geom_intron(
+        data = to_intron(APH1A_annotations_ccRCC2_subset, "transcript_name"),
+        aes(strand = strand)
+    ) 
+```
+
