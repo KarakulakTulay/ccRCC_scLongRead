@@ -103,31 +103,31 @@ ccRCC_5_isoform <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSu
 
 ```{r SelectCounts}
 ## Normal
-Normal_counts <- as.data.frame(healthy_isoform[["RNA"]]$counts)
+Normal_counts <- as.data.frame(as.matrix(healthy_isoform[["RNA"]]$counts))
 Normal_counts$isoform <- sapply(strsplit(rownames(healthy_isoform), ":"),`[`, 1)
 Normal_counts$associated_gene <- sapply(strsplit(rownames(healthy_isoform), ":"),`[`, 2)
 Normal_counts_tama <- merge(Normal_counts, IsoMatch_All[IsoMatch_All$Sample == 'Normal',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
 
 ## ccRCC2
-ccRCC2_counts <- as.data.frame(ccRCC_2_isoform[["RNA"]]$counts)
+ccRCC2_counts <- as.data.frame(as.matrix(ccRCC_2_isoform[["RNA"]]$counts))
 ccRCC2_counts$isoform <- sapply(strsplit(rownames(ccRCC_2_isoform), ":"),`[`, 1)
 ccRCC2_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_2_isoform), ":"),`[`, 2)
 ccRCC2_counts_tama <- merge(ccRCC2_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC2',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
 
 ### ccRCC3
-ccRCC3_counts <- as.data.frame(ccRCC_3_isoform[["RNA"]]$counts)
+ccRCC3_counts <- as.data.frame(as.matrix(ccRCC_3_isoform[["RNA"]]$counts))
 ccRCC3_counts$isoform <- sapply(strsplit(rownames(ccRCC_3_isoform), ":"),`[`, 1)
 ccRCC3_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_3_isoform), ":"),`[`, 2)
 ccRCC3_counts_tama <- merge(ccRCC3_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC3',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
 
 ## ccRCC4
-ccRCC4_counts <- as.data.frame(ccRCC_4_isoform[["RNA"]]$counts)
+ccRCC4_counts <- as.data.frame(as.matrix(ccRCC_4_isoform[["RNA"]]$counts))
 ccRCC4_counts$isoform <- sapply(strsplit(rownames(ccRCC_4_isoform), ":"),`[`, 1)
 ccRCC4_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_4_isoform), ":"),`[`, 2)
 ccRCC4_counts_tama <- merge(ccRCC4_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC4',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
 
 ## ccRCC5
-ccRCC5_counts <- as.data.frame(ccRCC_5_isoform[["RNA"]]$counts)
+ccRCC5_counts <- as.data.frame(as.matrix(ccRCC_5_isoform[["RNA"]]$counts))
 ccRCC5_counts$isoform <- sapply(strsplit(rownames(ccRCC_5_isoform), ":"),`[`, 1)
 ccRCC5_counts$associated_gene <- sapply(strsplit(rownames(ccRCC_5_isoform), ":"),`[`, 2)
 ccRCC5_counts_tama <- merge(ccRCC5_counts, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC5',][,c(1,3)], by.x='isoform', by.y='PBid') %>% group_by(associated_gene, TamaID) %>% summarise(across(-c('isoform'), sum), .groups = 'drop')
@@ -267,14 +267,14 @@ saveRDS(ccRCC3_mdts_pos_filt2, '/Users/tulaykarakulak/Desktop/Desktop2/Manuscrip
 
 
 ```{r readMDTs}
-ccRCC5_mdts_neg <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_neg_tama.RDS')
-ccRCC4_mdts_neg <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_neg_tama.RDS')
-ccRCC2_mdts_neg <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_neg_tama.RDS')
-ccRCC5_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_tama.RDS')
-ccRCC4_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_tama.RDS')
-ccRCC2_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_tama.RDS')
-Normal_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/Normal_mdts_pos_tama.RDS')
-ccRCC3_mdts_pos <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC3_mdts_pos_tama.RDS')
+ccRCC5_mdts_neg_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_neg_tama.RDS')
+ccRCC4_mdts_neg_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_neg_tama.RDS')
+ccRCC2_mdts_neg_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_neg_tama.RDS')
+ccRCC5_mdts_pos_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_tama.RDS')
+ccRCC4_mdts_pos_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_tama.RDS')
+ccRCC2_mdts_pos_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_tama.RDS')
+Normal_mdts_pos_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/Normal_mdts_pos_tama.RDS')
+ccRCC3_mdts_pos_filt2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC3_mdts_pos_tama.RDS')
 ```
 
 
@@ -416,18 +416,19 @@ ccRCC5_mdts_pos_neg_switch <- calculate_switches(cancer_ori = ccRCC5_mdts_pos_fi
 ```{r additionalFiltering}
 ### additional filtering
 ccRCC2_mdts_pos_neg_switch_remaining <- ccRCC2_mdts_pos_neg_switch[!ccRCC2_mdts_pos_neg_switch$dMDT %in% c(Normal_mdts_pos$ENST1, ccRCC3_mdts_pos$ENST1), ] # 10484    12
-ccRCC2_mdts_pos_neg_switch_remaining_filter <- ccRCC2_mdts_pos_neg_switch_remaining %>% dplyr::filter(TPM1_cancer == 1 | enrichment >= 2) # 10484    12
 
 ccRCC5_mdts_pos_neg_switch_remaining <- ccRCC5_mdts_pos_neg_switch[!ccRCC5_mdts_pos_neg_switch$dMDT %in% c(Normal_mdts_pos$ENST1, ccRCC3_mdts_pos$ENST1), ] # 6218   12
-ccRCC5_mdts_pos_neg_switch_remaining_filter <- ccRCC5_mdts_pos_neg_switch_remaining %>% 
-dplyr::filter(TPM1_cancer == 1 | enrichment >= 2)  # 6218   12
 
 ccRCC4_mdts_pos_neg_switch_remaining <- ccRCC4_mdts_pos_neg_switch[!ccRCC4_mdts_pos_neg_switch$dMDT %in% c(Normal_mdts_pos$ENST1, ccRCC3_mdts_pos$ENST1), ] #  319  12
-
-ccRCC4_mdts_pos_neg_switch_remaining_filter <- ccRCC4_mdts_pos_neg_switch_remaining %>%
-  dplyr::filter(TPM1_cancer == 1 | enrichment >= 2) # 319  12
 ```
 
+```{r saveRDSSwitches_1}
+saveRDS(ccRCC2_mdts_pos_neg_switch_remaining, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_neg_switch_tama_part1.RDS')
+
+saveRDS(ccRCC4_mdts_pos_neg_switch_remaining, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_neg_switch_tama_part.RDS')
+
+saveRDS(ccRCC5_mdts_pos_neg_switch_remaining, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_neg_switch_tama_part1.RDS')
+```
 
 ```{r FilterSameAssociatetedTranscript}
 library(tidyr)
@@ -443,37 +444,54 @@ ccRCC5_switches_split <- ccRCC5_mdts_pos_neg_switch_remaining %>%
 
 filter_same_transc <- function(switches, annotation) {
   remove_rows <- c()
+  dMDT_list <- c()
   for(each_row in 1:nrow(switches)) {
   
     dMDT_in_row <- switches[each_row, 'dMDT']$dMDT
-    MDT_in_row <- switches[each_row, 'MDT_GTEx']$MDT_GTEx
+    MDT_in_row <-  switches[each_row, 'MDT_GTEx']$MDT_GTEx
     
-    dMDT_transcript <- annotation[annotation$TamaID == dMDT_in_row, 'associated_transcript']
-    MDT_transcript <- annotation[annotation$TamaID == MDT_in_row, 'associated_transcript']
-    if (any(dMDT_transcript %in% MDT_transcript)) {
+    dMDT_transcript <- unique(annotation[annotation$TamaID == dMDT_in_row, 'associated_transcript'])
+    MDT_transcript <- unique(annotation[annotation$TamaID == MDT_in_row, 'associated_transcript'])
+    
+    if (length(dMDT_transcript) == 1 && length(MDT_transcript) == 1) {
       
-      remove_rows <- c(remove_rows, each_row)
-    }
+      if (dMDT_transcript  != 'novel' & MDT_transcript != 'novel') { # to include novels
+      
+      if (dMDT_transcript == MDT_transcript) {
+        
+        dMDT_list <- c(dMDT_list, dMDT_in_row)
+        remove_rows <- c(remove_rows, each_row)
+      }      
     
+      }
+  } else if(any(dMDT_transcript %in% MDT_transcript)) {
+      
+      if(!'novel' %in% dMDT_transcript) { # to include novels
+        
+        dMDT_list <- c(dMDT_list, dMDT_in_row)
+        remove_rows <- c(remove_rows, each_row) 
+      }
+    }
   }
     
    switches_filtered <- switches[-remove_rows,]
-   return(switches_filtered)
+   switches_filtered2 <- switches[!switches$dMDT %in% dMDT_list,]
+   return(switches_filtered2)
   
 }  
 
-ccRCC4_switches_filtered <- filter_same_transc(ccRCC4_switches_split, isoform_annotations_ccRCC4_tama) # 2948   12
-ccRCC2_switches_filtered <- filter_same_transc(ccRCC2_switches_split, isoform_annotations_ccRCC2_tama) # 18153    13
-ccRCC5_switches_filtered <- filter_same_transc(ccRCC5_switches_split, isoform_annotations_ccRCC5_tama) # 32164    12
+ccRCC4_switches_filtered <- filter_same_transc(ccRCC4_switches_split, isoform_annotations_ccRCC4_tama) # 3677   12
+ccRCC2_switches_filtered <- filter_same_transc(ccRCC2_switches_split, isoform_annotations_ccRCC2_tama) # 16201    12
+ccRCC5_switches_filtered <- filter_same_transc(ccRCC5_switches_split, isoform_annotations_ccRCC5_tama) # 35452    12
 ``` 
 
 
 ```{r saveRDSSwitches}
-saveRDS(ccRCC2_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_neg_switch_tama.RDS')
+saveRDS(ccRCC2_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_neg_switch_tama_part2.RDS')
 
-saveRDS(ccRCC4_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_neg_switch_tama.RDS')
+saveRDS(ccRCC4_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_neg_switch_tama_part2.RDS')
 
-saveRDS(ccRCC5_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_neg_switch_tama.RDS')
+saveRDS(ccRCC5_switches_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_neg_switch_tama_part2.RDS')
 
 
 ccRCC2_switches_filtered$Cohort <- 'ccRCC2'
@@ -482,6 +500,39 @@ ccRCC5_switches_filtered$Cohort <- 'ccRCC5'
 All_Switches <- rbind(ccRCC2_switches_filtered, ccRCC4_switches_filtered, ccRCC5_switches_filtered)
 ```
 
+read files
+```{r readRDSSwitches}
+ccRCC2_switches_filtered <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC2_mdts_pos_neg_switch_tama_part2.RDS')
+
+ccRCC4_switches_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC4_mdts_pos_neg_switch_tama_part2.RDS')
+
+ccRCC5_switches_filtered <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/MDTSwitches/ccRCC5_mdts_pos_neg_switch_tama_part2.RDS')
+
+
+ccRCC2_switches_filtered$Cohort <- 'ccRCC2'
+ccRCC4_switches_filtered$Cohort <- 'ccRCC4'
+ccRCC5_switches_filtered$Cohort <- 'ccRCC5'
+All_Switches <- rbind(ccRCC2_switches_filtered, ccRCC4_switches_filtered, ccRCC5_switches_filtered)
+```
+
+
+```{r mergeResults}
+ccRCC2_switches_cMDT_TamaID <- merge(ccRCC2_switches_filtered, isoform_annotations_ccRCC2_tama[, c(1,2, 4, 5, 6, 7, 8, 9, 10, 52)], by.x = 'dMDT', by.y = 'TamaID') 
+ccRCC2_switches_cMDT_TamaID_MDT <- merge(ccRCC2_switches_cMDT_TamaID, isoform_annotations_ccRCC2_tama[, c(1, 6, 8, 52)], by.x = 'MDT_GTEx', by.y = 'TamaID')
+ccRCC2_switches_cMDT_TamaID_MDT_filt <- ccRCC2_switches_cMDT_TamaID_MDT[, c(1,2,4, 13, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25, 26)] %>% dplyr::distinct()
+colnames(ccRCC2_switches_cMDT_TamaID_MDT_filt) <- c('MDT', 'cMDT', 'GeneName', 'Cohort', 'PBid_Cancer', 'chrom', 'length_of_cMDT', 'exons_of_cMDT', 'structural_category_cMDT', 'associated_transcript_cMDT', 'ref_length', 'ref_exon', 'PBid_MDT', 'structural_category_MDT', 'associated_transcript_MDT')
+
+ccRCC4_switches_cMDT_TamaID <- merge(ccRCC4_switches_filtered, isoform_annotations_ccRCC4_tama[, c(1,2, 4, 5, 6, 7, 8, 9, 10, 52)], by.x = 'dMDT', by.y = 'TamaID')
+ccRCC4_switches_cMDT_TamaID_MDT <- merge(ccRCC4_switches_cMDT_TamaID, isoform_annotations_ccRCC4_tama[, c(1, 6, 8, 52)], by.x = 'MDT_GTEx', by.y = 'TamaID')
+ccRCC4_switches_cMDT_TamaID_MDT_filt <- ccRCC4_switches_cMDT_TamaID_MDT[, c(1,2,4,13, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25, 26)] %>% dplyr::distinct()
+colnames(ccRCC4_switches_cMDT_TamaID_MDT_filt) <- c('MDT', 'cMDT', 'GeneName','Cohort', 'PBid_Cancer', 'chrom', 'length_of_cMDT', 'exons_of_cMDT', 'structural_category_cMDT', 'associated_transcript_cMDT', 'ref_length', 'ref_exon', 'PBid_MDT', 'structural_category_MDT', 'associated_transcript_MDT')
+
+ccRCC5_switches_cMDT_TamaID <- merge(ccRCC5_switches_filtered, isoform_annotations_ccRCC5_tama[, c(1,2, 4, 5, 6, 7, 8, 9, 10, 52)], by.x = 'dMDT', by.y = 'TamaID')
+ccRCC5_switches_cMDT_TamaID_MDT <- merge(ccRCC5_switches_cMDT_TamaID, isoform_annotations_ccRCC5_tama[, c(1, 6, 8, 52)], by.x = 'MDT_GTEx', by.y = 'TamaID')
+ccRCC5_switches_cMDT_TamaID_MDT_filt <- ccRCC5_switches_cMDT_TamaID_MDT[, c(1,2,4,13,15,16,17,18, 19, 21, 22, 23, 24, 25, 26)] %>% dplyr::distinct()
+
+colnames(ccRCC5_switches_cMDT_TamaID_MDT_filt) <- c('MDT', 'cMDT', 'GeneName','Cohort', 'PBid_Cancer', 'chrom', 'length_of_cMDT', 'exons_of_cMDT', 'structural_category_cMDT', 'associated_transcript_cMDT', 'ref_length', 'ref_exon', 'PBid_MDT', 'structural_category_MDT', 'associated_transcript_MDT')
+```
 
 ```{r SummarizeData}
 ccRCC2_switches <- ccRCC2_switches_filtered %>% dplyr::select(dMDT, ENSG, MDT_GTEx, SampleID) %>% dplyr::distinct() %>% dplyr::group_by(dMDT, ENSG, MDT_GTEx) %>% dplyr::distinct() %>% dplyr::summarise(count = n())  %>% ungroup() %>% dplyr::select(dMDT, ENSG, MDT_GTEx, count) %>% group_by(dMDT, ENSG, count) %>% dplyr::distinct() %>% summarize(MDT_GTEx = paste(unique(MDT_GTEx), collapse = ", "), .groups = 'drop') %>%  dplyr::arrange(desc(count))
@@ -502,10 +553,18 @@ colnames(ccRCC5_switches) <- c('cMDT_TamaID', 'GeneName', 'CellNumber', 'MDT_in_
 
 ccRCC_All_Switches <- rbind(ccRCC2_switches, ccRCC4_switches, ccRCC5_switches)
 
-write.table(ccRCC_All_Switches, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/SupplementaryTables/SupplementaryFile_3.tsv', quote = FALSE, row.names = FALSE, sep = '\t')
+#write.table(ccRCC_All_Switches, #'/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supple#mentaries/SupplementaryTables/SupplementaryFile_3.tsv', quote = FALSE, row.names = #FALSE, sep = '\t')
 ```
 
+```{r mergeNumberOfCellswithAnnotations}
+ccRCC2_switches_cMDT_TamaID_MDT_filt_numberOfCell <- merge(ccRCC2_switches_cMDT_TamaID_MDT_filt, ccRCC2_switches[,c(1,3)], by.x = 'cMDT', by.y = 'cMDT_TamaID')
+ccRCC4_switches_cMDT_TamaID_MDT_filt_numberOfCell <- merge(ccRCC4_switches_cMDT_TamaID_MDT_filt, ccRCC4_switches[,c(1,3)], by.x = 'cMDT', by.y = 'cMDT_TamaID')
+ccRCC5_switches_cMDT_TamaID_MDT_filt_numberOfCell <- merge(ccRCC5_switches_cMDT_TamaID_MDT_filt, ccRCC5_switches[,c(1,3)], by.x = 'cMDT', by.y = 'cMDT_TamaID')
 
+
+ccRCC_All_Switches_annot <- (rbind(ccRCC2_switches_cMDT_TamaID_MDT_filt_numberOfCell, ccRCC4_switches_cMDT_TamaID_MDT_filt_numberOfCell, ccRCC5_switches_cMDT_TamaID_MDT_filt_numberOfCell) %>% dplyr::arrange(desc(CellNumber)))
+write.table(ccRCC_All_Switches_annot, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/SupplementaryTables/SupplementaryFile_3_annotations.tsv', quote = FALSE, row.names = FALSE, sep = '\t')
+```
 
 ```{r plotExp}
 library(tidyr)
@@ -557,16 +616,17 @@ ggplot(data_filtered_neg, aes(x = ENST, y = Count)) +
 
 
 ```{r plot}
-Normal_mdts_pos_filt2$Group <- 'Normal'
-ccRCC3_mdts_pos_filt2$Group <- 'ccRCC3'
 ccRCC2_mdts_pos_filt2$Group <- 'ccRCC2_ccRCC'
 ccRCC4_mdts_pos_filt2$Group <- 'ccRCC4_ccRCC'
 ccRCC5_mdts_pos_filt2$Group <- 'ccRCC5_ccRCC'
+
+Normal_mdts_pos_filt2$Group <- 'Normal'
+ccRCC3_mdts_pos_filt2$Group <- 'ccRCC3'
 ccRCC5_mdts_neg_filt2$Group <- 'ccRCC5_nonccRCC'
 ccRCC4_mdts_neg_filt2$Group <- 'ccRCC4_nonccRCC'
 ccRCC2_mdts_neg_filt2$Group <- 'ccRCC2_nonccRCC'
 
-ccRCC_mdts_pos_neg <- rbind(ccRCC2_mdts_neg_filt2, ccRCC2_mdts_pos_filt2, ccRCC4_mdts_neg_filt2, ccRCC4_mdts_pos_filt2, ccRCC5_mdts_neg_filt2, ccRCC5_mdts_pos_filt2, ccRCC3_mdts_pos_filt2, ccRCC2_mdts_pos, Normal_mdts_pos_filt2)
+ccRCC_mdts_pos_neg <- rbind(ccRCC2_mdts_neg_filt2, ccRCC2_mdts_pos_filt2, ccRCC4_mdts_neg_filt2, ccRCC4_mdts_pos_filt2, ccRCC5_mdts_neg_filt2, ccRCC5_mdts_pos_filt2, ccRCC3_mdts_pos_filt2, Normal_mdts_pos_filt2)
 
 count_data_mdt <- ccRCC_mdts_pos_neg %>%
   group_by(SampleID, Group) %>%
@@ -619,7 +679,6 @@ ggVennDiagram(dMDT_lists, label_alpha = 0) + scale_fill_gradient(low="grey90",hi
 ```{r ORAofMDTGenes}
 MDT_genes_ccRCC2_ccRCC4_ccRCC5 <- c(intersect(ccRCC2_switches_filtered$ENSG, ccRCC4_switches_filtered$ENSG), intersect(ccRCC2_switches_filtered$ENSG, ccRCC5_switches_filtered$ENSG), intersect(ccRCC4_switches_filtered$ENSG, ccRCC5_switches_filtered$ENSG))
 
-MDT_genes_ccRCC2_ccRCC4_ccRCC5_onlyIntr <- intersect(intersect(ccRCC2_switches_filtered$ENSG, ccRCC4_switches_filtered$ENSG), ccRCC5_switches_filtered$ENSG)
 #MDT_genes_ccRCC2_ccRCC5_df <- read.csv('/Users/tulaykarakulak/Desktop/MDT_genes_ccRCC2_ccRCC5.tsv', header = TRUE)
 #MDT_genes_ccRCC2_ccRCC5 <- MDT_genes_ccRCC2_ccRCC5_df
 library(clusterProfiler)
@@ -640,8 +699,6 @@ m_c4 <- msigdbr(species = "Homo sapiens", category = "C4") %>%
   dplyr::select(gs_name, entrez_gene)
 
 eg = bitr(MDT_genes_ccRCC2_ccRCC4_ccRCC5, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
-eg_intersect = bitr(MDT_genes_ccRCC2_ccRCC4_ccRCC5_onlyIntr, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
-
 
 em <- enricher(eg$ENTREZID, TERM2GENE=m_t2g)
 eH <- enricher(eg$ENTREZID, TERM2GENE=m_H)

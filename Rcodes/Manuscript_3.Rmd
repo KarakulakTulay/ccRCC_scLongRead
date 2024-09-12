@@ -128,7 +128,7 @@ cellTypesPro_seurat_pos_neg <- ggplot(All_scisoseq_file_tama_ccRCC_nonccRCC, aes
 cellTypesPro_seurat_pos_neg
 ```
 
-ccRCC and nonccRCC Explicit Isoforms - it is not added to the manuscript
+ccRCC and nonccRCC Explicit Isoforms - it is added to the manuscript 
 ```{r isoformTypes2}
 # Sample 2
 nonccRCC2_Sample_Specific <- setdiff(ccRCC2_Isoforms_non_ccRCC, ccRCC2_Isoforms_ccRCC)
@@ -225,7 +225,7 @@ SuppTable2_ccRCC5 <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% c
 
 SuppTable2 <- rbind(SuppTable2_ccRCC2, SuppTable2_ccRCC4, SuppTable2_ccRCC5)
 
-write.table(SuppTable2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/SupplementaryTables/SupplementaryFile_2.tsv', quote = FALSE, row.names = FALSE, sep = '\t')
+#write.table(SuppTable2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_#Codes_Supplementaries/SupplementaryTables/SupplementaryFile_2.tsv', quote = FALSE, row.names = #FALSE, sep = '\t')
 ```
 
 ## Figure 3G
@@ -264,9 +264,7 @@ WP <- enrichWP(eg$ENTREZID, organism = "Homo sapiens")
 wp_result <- dotplot(WP, showCategory=10)
 emH_result <- dotplot(em_H, showCategory=10)
 wp_result
-ggsave("Figure3F.png", plot = wp_result, bg = "transparent", width = 8, height = 10)
-
-#ggsave("Figure3F_emHallmark.png", plot = emH_result, bg = "transparent", width = 8, height = 10)
+#ggsave("Figure3E.png", plot = emH_result, bg = "transparent", width = 8, height = 10)
 ```
 
 
