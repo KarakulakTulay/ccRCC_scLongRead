@@ -1,0 +1,17 @@
+# Run bedparse for the correct format
+bedparse gtf2bed --extraFields gene_id ccRCC2_annotations.gff > ccRCC2_annotations.gff.bed
+bedparse gtf2bed --extraFields gene_id ccRCC3_annotations.gff > ccRCC3_annotations.gff.bed &
+bedparse gtf2bed --extraFields gene_id ccRCC4_annotations.gff > ccRCC4_annotations.gff.bed &
+bedparse gtf2bed --extraFields gene_id ccRCC5_annotations.gff > ccRCC5_annotations.gff.bed &
+
+# Format the gff.bed files for tama merge
+cat ccRCC3_annotations.gff.bed | awk -v OFS='\t' '{print $1,$2,$3, $13 ";" $4, $5, $6,$7,$8,$9,$10,$11,$12}' > ccRCC3_annotations.gff2.bed
+cat ccRCC4_annotations.gff.bed | awk -v OFS='\t' '{print $1,$2,$3, $13 ";" $4, $5, $6,$7,$8,$9,$10,$11,$12}' > ccRCC4_annotations.gff2.bed
+cat ccRCC5_annotations.gff.bed | awk -v OFS='\t' '{print $1,$2,$3, $13 ";" $4, $5, $6,$7,$8,$9,$10,$11,$12}' > ccRCC5_annotations.gff2.bed
+cat ccRCC2_annotations.gff.bed | awk -v OFS='\t' '{print $1,$2,$3, $13 ";" $4, $5, $6,$7,$8,$9,$10,$11,$12}' > ccRCC2_annotations.gff2.bed
+
+# Run tama merge
+python2 tama/tama_merge.py -f filelist_merge.txt -a 50 -z 100 -m 5 -p output_prefix -e common_ends -s isoseq_ccRCC2 &> tama.log &
+
+# Extract important parts
+less output_prefix_merge.txt | cut -f4 | sed 's/;/ /g' | sed 's/_/ /g' | awk '{print $1,$3,$4}' > Isoform_New_IDs_Tama.tsv
