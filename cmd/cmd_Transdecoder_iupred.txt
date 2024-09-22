@@ -1,0 +1,27 @@
+# Run Transdecoder LongOrfs
+perl /mnt/mnemo6/tulay/tools/TransDecoder-TransDecoder-v5.7.1/TransDecoder.LongOrfs -t scisoseq.mapped_transcripts.collapse.fasta &> TransEncoderlog &
+
+## downloaded Uniprot canonical+isoform Human protein fasta files on 16th November 2023
+# make db
+makeblastdb -in uniprotkb_Human_AND_model_organism_9606_2023_11_16.fasta -dbtype prot &
+
+#run hmmsearch
+~/tools/hmmer-3.4/bin/hmmsearch --cpu 8 -E 1e-10 --domtblout pfam.domtblout ~/databases/Pfam/Pfam-A.hmm longest_orfs.pep &> hmmerLog &
+
+# run blastp on longest_orfs.pep by using the db from UniProt
+blastp -query longest_orfs.pep -db uniprotkb_Human_AND_model_organism_9606_2023_11_16.fasta -max_target_seqs 1 -outfmt 6 -evalue 1e-5 -num_threads 10 > blast.outfmt6 &> blastplog &
+
+## run Transdecoder Predict
+perl /mnt/mnemo6/tulay/tools/TransDecoder-TransDecoder-v5.7.1/TransDecoder.Predict -t scisoseq.mapped_transcripts.collapse.fasta --retain_pfam_hits scisoseq.5p--3p.tagged.refined.corrected.sorted.dedup.fasta.transdecoder_dir/pfam.domtblout &> TransdecoderPredict.Log &
+
+# extract the ORFs with best score and PFAM ids with fetch_bestORF_sequences.py
+python3 fetch_bestORF_sequences.py scisoseq.mapped_transcripts.collapse.fasta.transdecoder.pep scisoseq.mapped_transcripts.collapse.fasta.transdecoder_dir/longest_orfs.cds.scores best_ORF_sequences.pep &> fetch_bestORF.log &
+./extract_ORFTypes.pl &> fetch_ORF_types.log &
+
+# iupred prediction for all pep seq with disordered_pred.py and iupred2a.py
+mkdir iupred_result_all
+python3 disordered_pred.py best_ORF_sequences.pep ~/tools/iupred2a/iupred2a.py iupred_result_all/ &> iupred_results_all.log &
+cd iupred_result_all/
+
+# calculate percentage of disordered and ordered residues
+perl iupred_score_percentage.pl &> iupred_perc.log &
