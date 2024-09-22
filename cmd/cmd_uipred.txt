@@ -1,2 +1,0 @@
-# iupred prediction
-python3 disordered_pred.py best_ORFsequences_FSM_Complete_forAF.pep ~/tools/iupred2a/iupred2a.py iupred_results_FSM/ &>  iupred_results_FSM.log &
