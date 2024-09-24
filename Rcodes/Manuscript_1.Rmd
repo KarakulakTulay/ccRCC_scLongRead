@@ -606,10 +606,20 @@ fsm_cell_UMI
 # Figure 2 : ORFs and Intrinsically Disordered Transcripts
 ```{r read_ORF_predictions}
 ORF_normal <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/BioRxiv/InputFiles/Normal/ORFs/best_ORFs_types.tsv', header = TRUE, sep='\t')
+# select only positive predictions
+ORF_normal <- ORF_normal[ORF_normal$ORFType %in% c("5prime_partial (+)", "complete (+)",      "3prime_partial (+)", "internal (+)"),]
+
 ORF_ccRCC2 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/BioRxiv/InputFiles/ccRCC2/ORFs/best_ORFs_types.tsv', header = TRUE, sep='\t')
+ORF_ccRCC2 <- ORF_ccRCC2[ORF_ccRCC2$ORFType %in% c("5prime_partial (+)" , "complete (+)",       "3prime_partial (+)", "internal (+)"),]
+
 ORF_ccRCC3 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/BioRxiv/InputFiles/ccRCC3/ORFs/best_ORFs_types.tsv', header = TRUE, sep='\t')
+ORF_ccRCC3 <- ORF_ccRCC3[ORF_ccRCC3$ORFType %in% c("5prime_partial (+)" , "complete (+)",       "3prime_partial (+)", "internal (+)"),]
+
 ORF_ccRCC4 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/BioRxiv/InputFiles/ccRCC4/ORFs/best_ORFs_types.tsv', header = TRUE, sep='\t')
+ORF_ccRCC4 <- ORF_ccRCC4[ORF_ccRCC4$ORFType %in% c("5prime_partial (+)" , "complete (+)",       "3prime_partial (+)", "internal (+)"),]
+
 ORF_ccRCC5 <- read.csv('/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/BioRxiv/InputFiles/ccRCC5/ORFs/best_ORFs_types.tsv', header = TRUE, sep='\t')
+ORF_ccRCC5 <- ORF_ccRCC5[ORF_ccRCC5$ORFType %in% c("5prime_partial (+)" , "complete (+)",       "3prime_partial (+)", "internal (+)"),]
 ```
 
 
@@ -717,7 +727,7 @@ ORFTypes_graphs <- ggplot(ORFTypes_necc, aes(x = structural_category, y = propor
   geom_bar(stat = "identity", position = "stack") +
   #labs(y = "Percentage", x = "Sample", title = "Proportion of ORF Types") +
   labs(y = "Percentage") +
-  scale_fill_manual(values = rev(color_palette2)) + 
+  scale_fill_manual(values = color_palette2) + 
   theme_classic() +
   facet_wrap(~Group) +
   #theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -755,7 +765,7 @@ p_novel <- ggplot(df_count_novel, aes(x = bins2, y = proportion, fill = ORFType)
   geom_bar(stat = "identity", position = "stack") +
   labs(y = "Proportion", x = "Cell Number Range") +
   #labs(y = "Proportion", x = "Cell Number Range", title = "Distribution of Open Reading Frame (ORF) Types in\nNovel Transcripts as a Function of Cell Prevalence") +
-  scale_fill_manual(values = rev(color_palette3)) + 
+  scale_fill_manual(values = color_palette3) + 
   theme_classic() +
   facet_wrap(~Group) +
   #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
@@ -766,12 +776,11 @@ p_novel <- ggplot(df_count_novel, aes(x = bins2, y = proportion, fill = ORFType)
 
 ```{r chiSquare}
 contingency_table <- table(ORF_all_novel$bins2, ORF_all_novel$ORFType)
-test_result <- chisq.test(contingency_table[,c(2,4,6)]) 
-test_result_complete <- chisq.test(contingency_table[,c(5,6)]) 
-test_result_partial <- chisq.test(contingency_table[,c(1:4)])# excluded internal(-) cases as they are in very limited number
-print(test_result) 
-print(test_result_complete) 
-print(test_result_partial) 
+## prop trend test - Cochran - Armitage test for trend 
+successes <- contingency_table[,3]  # Counts of "complete (+)" ORFs
+totals <- rowSums(contingency_table)  # Total counts of all ORF categories
+result <- prop.trend.test(successes, totals)
+print(result)
 ```
 
 ## Intrinsically disordered Proteins: IUPRED Results
@@ -801,25 +810,25 @@ colnames(iupred_result_all_ccRCC5) <- c('isoform', 'Disordered', 'Ordered')
 
 ### Figure 2D
 ```{r Figure2D}
-ORF_ccRCC2_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC2, ORF_ccRCC2_seurat[ORF_ccRCC2_seurat$structural_category  == 'full-splice_match',], by='isoform')
-ORF_ccRCC2_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC2, ORF_ccRCC2_seurat[ORF_ccRCC2_seurat$structural_category  == 'incomplete-splice_match',], by='isoform')
-ORF_ccRCC2_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC2, ORF_ccRCC2_seurat[ORF_ccRCC2_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog'),], by='isoform')
+ORF_ccRCC2_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC2, ORF_ccRCC2_seurat[ORF_ccRCC2_seurat$structural_category  == 'full-splice_match' & ORF_ccRCC2_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC2_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC2, ORF_ccRCC2_seurat[ORF_ccRCC2_seurat$structural_category  == 'incomplete-splice_match' & ORF_ccRCC2_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC2_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC2, ORF_ccRCC2_seurat[ORF_ccRCC2_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog')  & ORF_ccRCC2_seurat$ORFType %in% c('complete (+)'),], by='isoform')
 
-ORF_ccRCC3_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC3, ORF_ccRCC3_seurat[ORF_ccRCC3_seurat$structural_category  == 'full-splice_match',], by='isoform')
-ORF_ccRCC3_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC3, ORF_ccRCC3_seurat[ORF_ccRCC3_seurat$structural_category  == 'incomplete-splice_match',], by='isoform')
-ORF_ccRCC3_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC3, ORF_ccRCC3_seurat[ORF_ccRCC3_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog'),], by='isoform')
+ORF_ccRCC3_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC3, ORF_ccRCC3_seurat[ORF_ccRCC3_seurat$structural_category  == 'full-splice_match'  & ORF_ccRCC3_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC3_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC3, ORF_ccRCC3_seurat[ORF_ccRCC3_seurat$structural_category  == 'incomplete-splice_match'& ORF_ccRCC3_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC3_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC3, ORF_ccRCC3_seurat[ORF_ccRCC3_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog') & ORF_ccRCC3_seurat$ORFType %in% c('complete (+)'),], by='isoform')
 
-ORF_ccRCC4_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC4, ORF_ccRCC4_seurat[ORF_ccRCC4_seurat$structural_category  == 'full-splice_match',], by='isoform')
-ORF_ccRCC4_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC4, ORF_ccRCC4_seurat[ORF_ccRCC4_seurat$structural_category  == 'incomplete-splice_match',], by='isoform')
-ORF_ccRCC4_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC4, ORF_ccRCC4_seurat[ORF_ccRCC4_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog'),], by='isoform')
+ORF_ccRCC4_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC4, ORF_ccRCC4_seurat[ORF_ccRCC4_seurat$structural_category  == 'full-splice_match' & ORF_ccRCC4_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC4_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC4, ORF_ccRCC4_seurat[ORF_ccRCC4_seurat$structural_category  == 'incomplete-splice_match' & ORF_ccRCC4_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC4_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC4, ORF_ccRCC4_seurat[ORF_ccRCC4_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog')  & ORF_ccRCC4_seurat$ORFType %in% c('complete (+)'),], by='isoform')
 
-ORF_ccRCC5_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC5, ORF_ccRCC5_seurat[ORF_ccRCC5_seurat$structural_category  == 'full-splice_match',], by='isoform')
-ORF_ccRCC5_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC5, ORF_ccRCC5_seurat[ORF_ccRCC5_seurat$structural_category  == 'incomplete-splice_match',], by='isoform')
-ORF_ccRCC5_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC5, ORF_ccRCC5_seurat[ORF_ccRCC5_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog'),], by='isoform')
+ORF_ccRCC5_seurat_iupred_FSM <- merge(iupred_result_all_ccRCC5, ORF_ccRCC5_seurat[ORF_ccRCC5_seurat$structural_category  == 'full-splice_match'  & ORF_ccRCC5_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC5_seurat_iupred_ISM <- merge(iupred_result_all_ccRCC5, ORF_ccRCC5_seurat[ORF_ccRCC5_seurat$structural_category  == 'incomplete-splice_match'  & ORF_ccRCC5_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_ccRCC5_seurat_iupred_Novel <- merge(iupred_result_all_ccRCC5, ORF_ccRCC5_seurat[ORF_ccRCC5_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog')  & ORF_ccRCC5_seurat$ORFType %in% c('complete (+)'),], by='isoform')
 
-ORF_seurat_iupred_FSM <- merge(iupred_result_all_Normal, ORF_N_seurat[ORF_N_seurat$structural_category  == 'full-splice_match',], by='isoform')
-ORF_seurat_iupred_ISM <- merge(iupred_result_all_Normal, ORF_N_seurat[ORF_N_seurat$structural_category  == 'incomplete-splice_match',], by='isoform')
-ORF_seurat_iupred_Novel <- merge(iupred_result_all_Normal, ORF_N_seurat[ORF_N_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog'),], by='isoform')
+ORF_seurat_iupred_FSM <- merge(iupred_result_all_Normal, ORF_N_seurat[ORF_N_seurat$structural_category  == 'full-splice_match'  & ORF_N_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_seurat_iupred_ISM <- merge(iupred_result_all_Normal, ORF_N_seurat[ORF_N_seurat$structural_category  == 'incomplete-splice_match' & ORF_N_seurat$ORFType %in% c('complete (+)'),], by='isoform')
+ORF_seurat_iupred_Novel <- merge(iupred_result_all_Normal, ORF_N_seurat[ORF_N_seurat$structural_category  %in% c('novel_in_catalog', 'novel_not_in_catalog') & ORF_N_seurat$ORFType %in% c('complete (+)'),], by='isoform')
 
 
 ORF_seurat_iupred_merge <- rbind(ORF_ccRCC2_seurat_iupred_FSM, ORF_ccRCC2_seurat_iupred_ISM, ORF_ccRCC2_seurat_iupred_Novel, 
@@ -847,7 +856,6 @@ compare_means(
     Disordered ~ structural_category, 
     data = ORF_seurat_iupred_merge, 
     method = "wilcox.test", 
-    group.by = "Group", 
     comparisons = list(c("full-splice_match", "novel_in_catalog"), 
      c("full-splice_match", "novel_not_in_catalog"), 
      c("incomplete-splice_match", "novel_in_catalog"),
@@ -864,7 +872,6 @@ p-value = 0.009287
 ### Figure 2E
 ```{r Figure 2E}
 ORF_ccRCC2_seurat_iupred_sub <- merge(ORF_ccRCC2_seurat_iupred_Novel[ORF_ccRCC2_seurat_iupred_Novel$structural_category == 'novel_in_catalog', ], isoform_annotations_ccRCC_2_filtered_w_CellNumber[, c(1,2,7,15)], by=c('isoform'))
-
 
 ORF_ccRCC2_seurat_iupred_subNNIC <- merge(ORF_ccRCC2_seurat_iupred_Novel[ORF_ccRCC2_seurat_iupred_Novel$structural_category == 'novel_not_in_catalog', ], isoform_annotations_ccRCC_2_filtered_w_CellNumber[, c(1,2,7,15)], by=c('isoform'))
 
@@ -948,18 +955,20 @@ ORF_N_seurat_forRM <- merge(ORF_normal_isoform_annotations_normal_ORFs[,c(1,6,7,
 
 
 ### Figure 2D - Reference match
-ORF_ccRCC2_seurat_iupred_FSM_forRM  <- merge(iupred_result_FSM_ccRCC2, ORF_ccRCC2_seurat_forRM , by='isoform')
-ORF_ccRCC3_seurat_iupred_FSM_forRM  <- merge(iupred_result_FSM_ccRCC3, ORF_ccRCC3_seurat_forRM, by='isoform')
-ORF_ccRCC4_seurat_iupred_FSM_forRM  <- merge(iupred_result_FSM_ccRCC4, ORF_ccRCC4_seurat_forRM, by='isoform')
-ORF_ccRCC5_seurat_iupred_FSM_forRM  <- merge(iupred_result_FSM_ccRCC5, ORF_ccRCC5_seurat_forRM, by='isoform')
-ORF_seurat_iupred_FSM_forRM  <- merge(iupred_result_FSM, ORF_N_seurat_forRM, by='isoform')
+ORF_ccRCC2_seurat_iupred_FSM_forRM  <- merge(iupred_result_all_ccRCC2, ORF_ccRCC2_seurat_forRM[ORF_ccRCC2_seurat_forRM$structural_category == 'full-splice_match',] , by='isoform')
+ORF_ccRCC3_seurat_iupred_FSM_forRM  <- merge(iupred_result_all_ccRCC3, ORF_ccRCC3_seurat_forRM[ORF_ccRCC3_seurat_forRM$structural_category == 'full-splice_match',], by='isoform')
+
+ORF_ccRCC4_seurat_iupred_FSM_forRM  <- merge(iupred_result_all_ccRCC4, ORF_ccRCC4_seurat_forRM[ORF_ccRCC4_seurat_forRM$structural_category == 'full-splice_match',], by='isoform')
+ORF_ccRCC5_seurat_iupred_FSM_forRM  <- merge(iupred_result_all_ccRCC5, ORF_ccRCC5_seurat_forRM[ORF_ccRCC5_seurat_forRM$structural_category == 'full-splice_match',], by='isoform')
+ORF_seurat_iupred_FSM_forRM  <- merge(iupred_result_all_Normal, ORF_N_seurat_forRM[ORF_N_seurat_forRM$structural_category == 'full-splice_match',], by='isoform')
+
 ORF_seurat_iupred_merge_forRM  <- rbind(ORF_ccRCC2_seurat_iupred_FSM_forRM,
                                         ORF_ccRCC3_seurat_iupred_FSM_forRM,
                                  ORF_ccRCC4_seurat_iupred_FSM_forRM,
                                  ORF_ccRCC5_seurat_iupred_FSM_forRM,
                                  ORF_seurat_iupred_FSM_forRM)
 
-color_palette <- viridis(5, option = "D")
+color_palette <- viridis(14, option = "D")
 
 ORF_seurat_iupred_plot_forRM  <- ggplot(ORF_seurat_iupred_merge_forRM , aes(y=Disordered, x=subcategory, fill=subcategory)) + geom_boxplot(notch=TRUE) + scale_fill_manual(values = color_palette) +  theme_classic() +
   theme(axis.text.x = element_blank()) + stat_compare_means(method = "wilcox.test", label = "p.signif", 
@@ -974,6 +983,7 @@ ORF_seurat_iupred_plot_forRM  <- ggplot(ORF_seurat_iupred_merge_forRM , aes(y=Di
      c("reference_match", "alternative_3end5end"),
      c("reference_match", "mono-exon")))
 # Figure Supplementary 2B
+
 ORF_seurat_iupred_plot_forRM 
 #ggsave("Figure2D.png", plot = ORF_seurat_iupred_plot, bg = "transparent", width = 8, height = 5)
 ```
@@ -1067,5 +1077,5 @@ theme_classic() +
 
 isoform_annotations_ccRCC_2_filtered_w_CellNumber[isoform_annotations_ccRCC_2_filtered_w_CellNumber$isoform %in% ORF_ccRCC2[ORF_ccRCC2$ORFType %in% c('complete (+)', 'complete (-)'), 'PB.id'] & isoform_annotations_ccRCC_2_filtered_w_CellNumber$associated_gene.x == 'NNMT' & isoform_annotations_ccRCC_2_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),] # 8 NNMT novel isoform 
 
-isoform_annotations_ccRCC_5_filtered_w_CellNumber[isoform_annotations_ccRCC_5_filtered_w_CellNumber$isoform %in% ORF_ccRCC5[ORF_ccRCC5$ORFType %in% c('complete (+)', 'complete (-)'), 'PB.id'] & isoform_annotations_ccRCC_5_filtered_w_CellNumber$associated_gene.x == 'NNMT' & isoform_annotations_ccRCC_5_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),]
+ORF_ccRCC2_seurat_iupred_Novel[ORF_ccRCC2_seurat_iupred_Novel$isoform %in% isoform_annotations_ccRCC_2_filtered_w_CellNumber[isoform_annotations_ccRCC_2_filtered_w_CellNumber$isoform %in% ORF_ccRCC2[ORF_ccRCC2$ORFType %in% c('complete (+)', 'complete (-)'), 'PB.id'] & isoform_annotations_ccRCC_2_filtered_w_CellNumber$associated_gene.x == 'NNMT' & isoform_annotations_ccRCC_2_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'), 'isoform'],]
 
