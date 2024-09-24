@@ -72,7 +72,7 @@ scisoseq_file_ccrcc5_tama <- merge(scisoseq_file_ccrcc5, IsoMatch_All[IsoMatch_A
 scisoseq_file_normal_tama <- merge(scisoseq_file_normal, IsoMatch_All[IsoMatch_All$Sample == 'Normal',], by.x='pbid', by.y='PBid')
 ```
 
-### Supplementary Figure 5A 
+### Supplementary Figure 5A
 ```{r ccRCCvsnonccRCCCells}
 ccRCC2_Isoforms_ccRCC <- unique(scisoseq_file_ccrcc2_tama[scisoseq_file_ccrcc2_tama$Status == 'ccRCC', 'TamaID'])
 ccRCC4_Isoforms_ccRCC <- unique(scisoseq_file_ccrcc4_tama[scisoseq_file_ccrcc4_tama$Status == 'ccRCC', 'TamaID'])
@@ -263,8 +263,17 @@ WP <- enrichWP(eg$ENTREZID, organism = "Homo sapiens")
 #ora_mc4 <- enrichGO(eg$ENTREZID, organism = "Homo sapiens") 
 wp_result <- dotplot(WP, showCategory=10)
 emH_result <- dotplot(em_H, showCategory=10)
-wp_result
+#wp_result
 #ggsave("Figure3E.png", plot = emH_result, bg = "transparent", width = 8, height = 10)
+
+# adapted the ClusterProfiler visualization
+ggplot(em_H, showCategory = 10, aes(GeneRatio, fct_reorder(Description, GeneRatio))) + 
+    geom_segment(aes(xend=0, yend = Description)) + 
+    geom_point(aes(fill=p.adjust, size = Count), shape=21, stroke=1, color="black") +  # Black outline and original fill colors
+    scale_fill_gradient(low = "#FF1493",  high = "#FFD700") +  # Keep the original color gradient for the fill
+    scale_size_continuous(range=c(2, 10)) +  
+    xlab("GeneRatio") + 
+    theme_classic()
 ```
 
 
