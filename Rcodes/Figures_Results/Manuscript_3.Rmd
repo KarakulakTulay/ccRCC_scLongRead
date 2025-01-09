@@ -1,0 +1,281 @@
+---
+title: "Manuscript_3"
+author: "Tülay Karakulak"
+date: "2024-09-02"
+output: html_document
+---
+
+Codes to generate Figure 3D, 3E and 3F, and Supplementary Figure 5A 
+
+# Load Libraries
+```{r loadLibraries}
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(rmarkdown)
+library(RColorBrewer)
+library(viridis)
+set.seed(12345)
+```
+
+
+```{r readIsoforms}
+ccRCC_Marker_Annotations <- read.table( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/ccRCC_CellType_Revised.tsv', sep='\t', header = TRUE)
+head(ccRCC_Marker_Annotations)
+```
+
+```{r makeDF}
+# make a dataframe with Barcodes and sample 
+ccRCC_Marker_Annotations$BC <- sapply(strsplit(ccRCC_Marker_Annotations$CellBarcode, "-"), function(x) x[1])
+head(ccRCC_Marker_Annotations)
+```
+
+```{r read_AnnotationFiles}
+scisoseq_file_ccrcc2 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC2_filtered2.RDS')
+
+scisoseq_file_ccrcc4 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC4_filtered2.RDS')
+
+scisoseq_file_ccrcc5 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC5_filtered2.RDS')
+
+scisoseq_file_ccrcc3 <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC3_filtered2.RDS')
+
+scisoseq_file_normal <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_normal_filtered2.RDS')
+```
+
+
+# analyse all cells
+```{r assignCells}
+scisoseq_file_ccrcc2$Status <- ifelse(scisoseq_file_ccrcc2$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC2' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
+
+scisoseq_file_ccrcc4$Status <- ifelse(scisoseq_file_ccrcc4$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC4' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
+
+scisoseq_file_ccrcc5$Status <- ifelse(scisoseq_file_ccrcc5$BC %in%  ccRCC_Marker_Annotations[ccRCC_Marker_Annotations$Sample == 'ccRCC5' & ccRCC_Marker_Annotations$CellType == 'ccRCC', 'BC'], 'ccRCC', 'non-ccRCC')
+
+scisoseq_file_normal$Status <- 'non-ccRCC'
+scisoseq_file_ccrcc3$Status <- 'non-ccRCC'
+```
+
+tama isoform IDs
+```{r readRDSintersections}
+IsoMatch_All <- read.csv('/Users/tulaykarakulak/Documents/PhD/Projects/ccRCC_Sc_lrSequencing/070923_Final/tama_merge/Isoform_New_IDs_Tama2.tsv', sep=' ', header=FALSE)
+colnames(IsoMatch_All) <- c('TamaID', 'Sample', 'PBid')
+head(IsoMatch_All)
+```
+
+Match Isoforms 
+```{r matchTamaIDs}
+scisoseq_file_ccrcc2_tama <- merge(scisoseq_file_ccrcc2, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC2',], by.x='pbid', by.y='PBid')
+scisoseq_file_ccrcc3_tama <- merge(scisoseq_file_ccrcc3, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC3',], by.x='pbid', by.y='PBid')
+scisoseq_file_ccrcc4_tama <- merge(scisoseq_file_ccrcc4, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC4',], by.x='pbid', by.y='PBid')
+scisoseq_file_ccrcc5_tama <- merge(scisoseq_file_ccrcc5, IsoMatch_All[IsoMatch_All$Sample == 'ccRCC5',], by.x='pbid', by.y='PBid')
+scisoseq_file_normal_tama <- merge(scisoseq_file_normal, IsoMatch_All[IsoMatch_All$Sample == 'Normal',], by.x='pbid', by.y='PBid')
+```
+
+### Supplementary Figure 5A
+```{r ccRCCvsnonccRCCCells}
+ccRCC2_Isoforms_ccRCC <- unique(scisoseq_file_ccrcc2_tama[scisoseq_file_ccrcc2_tama$Status == 'ccRCC', 'TamaID'])
+ccRCC4_Isoforms_ccRCC <- unique(scisoseq_file_ccrcc4_tama[scisoseq_file_ccrcc4_tama$Status == 'ccRCC', 'TamaID'])
+ccRCC5_Isoforms_ccRCC <- unique(scisoseq_file_ccrcc5_tama[scisoseq_file_ccrcc5_tama$Status == 'ccRCC', 'TamaID'])
+
+ccRCC2_Isoforms_non_ccRCC <- unique(scisoseq_file_ccrcc2_tama[scisoseq_file_ccrcc2_tama$Status == 'non-ccRCC', 'TamaID'])
+ccRCC4_Isoforms_non_ccRCC <- unique(scisoseq_file_ccrcc4_tama[scisoseq_file_ccrcc4_tama$Status == 'non-ccRCC', 'TamaID'])
+ccRCC5_Isoforms_non_ccRCC <- unique(scisoseq_file_ccrcc5_tama[scisoseq_file_ccrcc5_tama$Status == 'non-ccRCC', 'TamaID'])
+
+All_scisoseq_file_tama <- rbind(scisoseq_file_normal_tama, scisoseq_file_ccrcc5_tama, scisoseq_file_ccrcc4_tama, scisoseq_file_ccrcc2_tama, scisoseq_file_normal_tama, scisoseq_file_ccrcc3_tama)
+
+#saveRDS(All_scisoseq_file_tama, 'All_scisoseq_file_tama.RDS')
+
+# ccRCC Cell Specific Isoforms and these isoforms are not expressed in any other non-ccRCC Cells
+ccRCC2_Specific <- setdiff(ccRCC2_Isoforms_ccRCC, All_scisoseq_file_tama[All_scisoseq_file_tama$Status == 'non-ccRCC', 'TamaID'])
+
+ccRCC4_Specific <- setdiff(ccRCC4_Isoforms_ccRCC, All_scisoseq_file_tama[All_scisoseq_file_tama$Status == 'non-ccRCC', 'TamaID'])
+
+ccRCC5_Specific <- setdiff(ccRCC5_Isoforms_ccRCC, All_scisoseq_file_tama[All_scisoseq_file_tama$Status == 'non-ccRCC', 'TamaID'])
+
+ccRCC_All_samples <- list(
+          ccRCC2=ccRCC2_Specific,
+          ccRCC4=ccRCC4_Specific,
+          ccRCC5=ccRCC5_Specific)
+
+# Supplementary Figure 5A 
+library(ggVennDiagram)
+ggVennDiagram(ccRCC_All_samples) + scale_fill_gradient(low = "grey", high='#0a9396')
+```
+
+## Figure 3D
+## Proportion of Isoforms across cell categories - some Isoforms might be found in both ccRCC and non-ccRCC cells
+```{r isoformTypes}
+## all Isoforms together
+All_scisoseq_file_tama$category[All_scisoseq_file_tama$category %in% c('fusion', 'genic', 'moreJunctions', 'NA', 'antisense', 'intergenic')]  <- 'Other'
+
+All_scisoseq_file_tama_ccRCC_nonccRCC <- All_scisoseq_file_tama[All_scisoseq_file_tama$Sample %in% c('ccRCC2', 'ccRCC4', 'ccRCC5'),] %>% dplyr::select(pbid, gene, category, Status, Sample)  %>% dplyr::distinct() %>% group_by(Sample, Status, category) %>%
+    summarise(count = n()) %>%
+    mutate(total = sum(count)) %>%
+    mutate(proportion = count/total) %>% ungroup() 
+
+color_palette <- viridis(5, option = "D")
+
+cellTypesPro_seurat_pos_neg <- ggplot(All_scisoseq_file_tama_ccRCC_nonccRCC, aes(y = proportion, x = Status, fill = category)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(y = "CellTypes", x = "proportion", title = "Proportion of Status-specific Transcript Categories across ccRCC Status") +
+  #scale_fill_manual(values = color_palette_inferno) + 
+  theme_classic() +
+  scale_fill_manual(values = color_palette) + 
+  facet_wrap(~Sample, scales="free_x") # +
+  #theme(legend.position="right")
+
+cellTypesPro_seurat_pos_neg
+```
+
+ccRCC and nonccRCC Explicit Isoforms - it is added to the manuscript 
+```{r isoformTypes2}
+# Sample 2
+nonccRCC2_Sample_Specific <- setdiff(ccRCC2_Isoforms_non_ccRCC, ccRCC2_Isoforms_ccRCC)
+ccRCC2_Sample_Specific <- setdiff(ccRCC2_Isoforms_ccRCC, ccRCC2_Isoforms_non_ccRCC)
+
+ccRCC2_Specific_Category <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC2_Sample_Specific & All_scisoseq_file_tama$Sample == 'ccRCC2', ]
+nonccRCC2_Specific_Category <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% nonccRCC2_Sample_Specific & All_scisoseq_file_tama$Sample == 'ccRCC2', ]
+
+
+## Sample 4
+nonccRCC4_Sample_Specific <- setdiff(ccRCC4_Isoforms_non_ccRCC, ccRCC4_Isoforms_ccRCC)
+ccRCC4_Sample_Specific <- setdiff(ccRCC4_Isoforms_ccRCC, ccRCC4_Isoforms_non_ccRCC)
+
+ccRCC4_Specific_Category <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC4_Sample_Specific & All_scisoseq_file_tama$Sample == 'ccRCC4', ]
+nonccRCC4_Specific_Category <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% nonccRCC4_Sample_Specific & All_scisoseq_file_tama$Sample == 'ccRCC4', ]
+
+## Sample 5
+nonccRCC5_Sample_Specific <- setdiff(ccRCC5_Isoforms_non_ccRCC, ccRCC5_Isoforms_ccRCC)
+ccRCC5_Sample_Specific <- setdiff(ccRCC5_Isoforms_ccRCC, ccRCC5_Isoforms_non_ccRCC)
+
+ccRCC5_Specific_Category <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC5_Sample_Specific & All_scisoseq_file_tama$Sample == 'ccRCC5', ]
+nonccRCC5_Specific_Category <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% nonccRCC5_Sample_Specific & All_scisoseq_file_tama$Sample == 'ccRCC5', ]
+
+All_scisoseq_file_tama_specific <- rbind(ccRCC2_Specific_Category, ccRCC4_Specific_Category, ccRCC5_Specific_Category, nonccRCC2_Specific_Category, nonccRCC4_Specific_Category, nonccRCC5_Specific_Category)
+
+All_scisoseq_file_tama_ccRCC_nonccRCC_explicit <- All_scisoseq_file_tama_specific[All_scisoseq_file_tama_specific$Sample %in% c('ccRCC2', 'ccRCC4', 'ccRCC5'),] %>% dplyr::select(pbid, gene, category, Status, Sample)  %>% dplyr::distinct() %>% group_by(Sample, Status, category) %>%
+    summarise(count = n()) %>%
+    mutate(total = sum(count)) %>%
+    mutate(proportion = count/total) %>% ungroup() 
+
+color_palette <- viridis(5, option = "D")
+
+cellTypesPro_seurat_pos_neg_spec_explicit <- ggplot(All_scisoseq_file_tama_ccRCC_nonccRCC_explicit, aes(y = proportion, x = Status, fill = category)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(y = "CellTypes", x = "proportion", title = "Proportion of Status-specific Transcript Categories across ccRCC Status") +
+  #scale_fill_manual(values = color_palette_inferno) + 
+  theme_classic() +
+  scale_fill_manual(values = color_palette) + 
+  facet_wrap(~Sample, scales="free_x") # +
+  #theme(legend.position="right")
+
+#cellTypesPro_seurat_pos_neg_spec_explicit
+#ggsave("Figure_Supplementary_ccRCC_nonccRCC.png", plot = cellTypesPro_seurat_pos_neg, bg = "transparent", width = 8, height = 5)
+```
+
+ccRCC2_Specific_Category %>% dplyr::filter(category %in% c('novel_in_catalog', 'novel_not_in_catalog')) %>% dplyr::distinct(BCrev, gene, TamaID, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID, Sample) %>% dplyr::summarise(count = n()) %>% dplyr::arrange(desc(count))
+
+# number of ANGPTL4 isoforms
+dim(ccRCC2_Specific_Category %>% dplyr::filter(category %in% c('novel_in_catalog', 'novel_not_in_catalog')) %>% dplyr::distinct(BCrev, gene, TamaID, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID, gene, Sample) %>% dplyr::summarise(count = n()) %>% dplyr::arrange(desc(count)) %>% dplyr::filter(gene == "ANGPTL4") %>% dplyr::filter(!TamaID %in% All_scisoseq_file_tama[All_scisoseq_file_tama$Status == 'non-ccRCC', 'TamaID']))
+134   4
+
+# number of NDUFA4L2 isoforms
+dim(ccRCC5_Specific_Category %>% dplyr::filter(category %in% c('novel_in_catalog', 'novel_not_in_catalog')) %>% dplyr::distinct(BCrev, gene, TamaID, Sample) %>% dplyr::distinct() %>% dplyr::group_by(TamaID, gene, Sample) %>% dplyr::summarise(count = n()) %>% dplyr::arrange(desc(count)) %>% dplyr::filter(gene == "NDUFA4L2") %>% dplyr::filter(!TamaID %in% All_scisoseq_file_tama[All_scisoseq_file_tama$Status == 'non-ccRCC', 'TamaID']))
+#  65  4
+
+
+```{r saveFilesAnnotations}
+isoform_annotations_ccRCC_2_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_2_filtered_w_CellNumber.RDS')
+
+isoform_annotations_ccRCC_4_filtered <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_4_filtered_w_CellNumber.RDS')
+
+isoform_annotations_ccRCC_5_filtered <- readRDS('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotation#isoform_annotations_ccRCC_5_filtered_w_CellNumber.RDS')
+```
+
+# Figure 3E
+```{r VennDiagram}
+# install.packages("ggVennDiagram")
+library(ggVennDiagram)
+
+ccRCC2_Specific_Novel <- unique(All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC2_Specific & All_scisoseq_file_tama$Sample == 'ccRCC2' & All_scisoseq_file_tama$category %in% c('novel_in_catalog', 'novel_not_in_catalog'), 'TamaID'])
+
+ccRCC4_Specific_Novel <- unique(All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC4_Specific & All_scisoseq_file_tama$Sample == 'ccRCC4' & All_scisoseq_file_tama$category %in% c('novel_in_catalog', 'novel_not_in_catalog'), 'TamaID'])
+
+ccRCC5_Specific_Novel <- unique(All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC5_Specific & All_scisoseq_file_tama$Sample == 'ccRCC5' & All_scisoseq_file_tama$category %in% c('novel_in_catalog', 'novel_not_in_catalog'), 'TamaID'])
+
+ccRCC_All_samples_Novel <- list(
+          ccRCC2=ccRCC2_Specific_Novel,
+          ccRCC4=ccRCC4_Specific_Novel,
+          ccRCC5=ccRCC5_Specific_Novel)
+
+figure_3e <- ggVennDiagram(ccRCC_All_samples_Novel) + scale_fill_gradient(low = "grey", high='#0a9396')
+
+figure_3e
+#ggsave("Figure_3e.png", plot = figure_3e, bg = "transparent", width = 8, height = 10)
+```
+
+
+```{r SupplementaryTable2}
+SuppTable2_ccRCC2 <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC2_Specific & All_scisoseq_file_tama$Sample == 'ccRCC2' & All_scisoseq_file_tama$category %in% c('novel_in_catalog', 'novel_not_in_catalog'), ] %>% dplyr::select(pbid, transcript, gene, category, Status, Sample, BCrev)  %>% dplyr::distinct() %>% dplyr::group_by(pbid, transcript, gene, category, Status, Sample) %>% dplyr::summarise(CellNumber = n()) %>% dplyr::arrange(desc(CellNumber))
+
+SuppTable2_ccRCC4 <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC4_Specific & All_scisoseq_file_tama$Sample == 'ccRCC4' & All_scisoseq_file_tama$category %in% c('novel_in_catalog', 'novel_not_in_catalog'), ] %>% dplyr::select(pbid, transcript, gene, category, Status, Sample, BCrev)  %>% dplyr::distinct() %>% dplyr::group_by(pbid, transcript, gene, category, Status, Sample) %>% dplyr::summarise(CellNumber = n()) %>% dplyr::arrange(desc(CellNumber))
+
+SuppTable2_ccRCC5 <- All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% ccRCC5_Specific & All_scisoseq_file_tama$Sample == 'ccRCC5' & All_scisoseq_file_tama$category %in% c('novel_in_catalog', 'novel_not_in_catalog'), ] %>% dplyr::select(pbid, transcript, gene, category, Status, Sample, BCrev)  %>% dplyr::distinct() %>% dplyr::group_by(pbid, transcript, gene, category, Status, Sample) %>% dplyr::summarise(CellNumber = n()) %>% dplyr::arrange(desc(CellNumber))
+
+SuppTable2 <- rbind(SuppTable2_ccRCC2, SuppTable2_ccRCC4, SuppTable2_ccRCC5)
+
+#write.table(SuppTable2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_#Codes_Supplementaries/SupplementaryTables/SupplementaryFile_2.tsv', quote = FALSE, row.names = #FALSE, sep = '\t')
+```
+
+## Figure 3G
+```{r clusterProfiler}
+intersect_all_tamaIDs <- unique(c(intersect(ccRCC_All_samples_Novel$ccRCC2, ccRCC_All_samples_Novel$ccRCC4), intersect(ccRCC_All_samples_Novel$ccRCC2, ccRCC_All_samples_Novel$ccRCC5), intersect(ccRCC_All_samples_Novel$ccRCC4, ccRCC_All_samples_Novel$ccRCC5)))
+
+gene_Ids <- unique(All_scisoseq_file_tama[All_scisoseq_file_tama$TamaID %in% intersect_all_tamaIDs, 'gene']) # 591 genes
+
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+m_df <- msigdbr(species = "Homo sapiens")  %>% 
+  dplyr::select(gs_name, entrez_gene)
+m_t2g <- msigdbr(species = "Homo sapiens", category = "C6") %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+m_H <- msigdbr(species = "Homo sapiens", category = "H") %>% 
+  dplyr::select(gs_name, entrez_gene) ## halmark gene set 
+
+m_c4 <- msigdbr(species = "Homo sapiens", category = "C4") %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+m_c2 <- msigdbr(species = "Homo sapiens", category = "C2") %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+
+eg = bitr(gene_Ids, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+
+em <- enricher(eg$ENTREZID, TERM2GENE=m_t2g)
+em_c4 <- enricher(eg$ENTREZID, TERM2GENE=m_c4)
+em_H <- enricher(eg$ENTREZID, TERM2GENE=m_H, qvalueCutoff = 0.1)
+em_c2 <- enricher(eg$ENTREZID, TERM2GENE=m_c2, qvalueCutoff = 0.1)
+
+WP <- enrichWP(eg$ENTREZID, organism = "Homo sapiens") 
+#ora_mc4 <- enrichGO(eg$ENTREZID, organism = "Homo sapiens") 
+wp_result <- dotplot(WP, showCategory=10)
+emH_result <- dotplot(em_H, showCategory=10)
+#wp_result
+#ggsave("Figure3E.png", plot = emH_result, bg = "transparent", width = 8, height = 10)
+
+# adapted the ClusterProfiler visualization
+ggplot(em_H, showCategory = 10, aes(GeneRatio, fct_reorder(Description, GeneRatio))) + 
+    geom_segment(aes(xend=0, yend = Description)) + 
+    geom_point(aes(fill=p.adjust, size = Count), shape=21, stroke=1, color="black") +  # Black outline and original fill colors
+    scale_fill_gradient(low = "#FF1493",  high = "#FFD700") +  # Keep the original color gradient for the fill
+    scale_size_continuous(range=c(2, 10)) +  
+    xlab("GeneRatio") + 
+    theme_classic()
+```
+
+
+
+

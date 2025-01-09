@@ -1,0 +1,321 @@
+---
+title:  "p28443 Isoform Differential Expression Acorde"
+author: "Natalia Zajac"
+output:
+  html_document: 
+    highlight: pygments
+    theme: sand
+    code_folding: hide
+    toc: yes
+    toc_depth: 4
+editor_options: 
+  chunk_output_type: inline
+---
+
+Started on `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`
+
+```{r setup, include=FALSE}
+#Run the following separately because it runs for long
+
+options(error=recover)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tibble)
+  library(purrr)
+  library(furrr)
+  library(ggplot2)
+  library(SingleCellExperiment)
+  library(Seurat)
+  library(acorde)
+  library(BiocParallel)
+  library(zinbwave)
+  library(cowplot)
+  library(ezRun)
+  register(SerialParam())
+})
+
+sample_data = ezRead.table("/home/zajac/Genomics/p28443_singlecell_pacbiovsillumina/SIB-poster/2024-05-22-sampleInfo.tsv")
+mtcontent = read.csv("/srv/GT/analysis/zajacn/p28443/mito_content.csv")
+mtcontent$BarcodeID = paste0(mtcontent$Barcode, "_", mtcontent$Sample)
+isoforms = read.csv("/srv/GT/analysis/zajacn/p28443/o31598_customFilteredIsoforms/Isoform_New_IDs_Tama2.tsv", header = F, sep = " ")
+colnames(isoforms) = c("TamaID", "Sample", "transcript")
+isoforms$Sample = str_replace(isoforms$Sample, "ccRCC","ccRCC_")
+
+sample_data$PigeonIsoformFiltering = paste0("/srv/GT/analysis/zajacn/p28443/o31598_customFilteredIsoforms/", str_remove(sapply(str_split(sample_data$PigeonUnfiltered, "/"), .subset, 8), "_getMTinfo_unfiltered"), "_072024IsoformFiltering")
+pbDirs <- paste0(sample_data$PigeonIsoformFiltering, "/isoforms_seurat/")
+
+seurat_pbDataList <- lapply(pbDirs, function(pbDir){
+  samplename = sample_data[sample_data$PigeonIsoformFiltering == str_remove(pbDir, "/isoforms_seurat/"),]$Name
+  cts <- Read10X(pbDir, gene.column = 1)
+  featInfo <- ezRead.table(paste0(pbDir, "/genes.tsv"), header = FALSE, row.names = NULL) # , col_names = FALSE)
+  colnames(featInfo) <- c("transcript", "gene_name")
+  featInfo = featInfo %>% 
+    separate(transcript, into = c("transcript", "geneid"), sep = ":") %>% 
+    left_join(isoforms[isoforms$Sample == samplename,], by = "transcript") %>% mutate(transcript = paste0(transcript, ":", geneid)) %>% 
+    dplyr::select(transcript, TamaID, gene_name)
+  rownames(cts) = featInfo$TamaID
+  ctsGene <- averageRows(cts[featInfo$TamaID,], by = featInfo$TamaID, func = sum) %>% 
+    as.matrix() %>% as("dgCMatrix")
+  fixed <- sub("-1", "", colnames(ctsGene)) %>% DNAStringSet() %>%
+    reverseComplement() %>% as.character() %>% paste0("_", samplename)
+  colnames(ctsGene) <- fixed
+  seurat_object = CreateSeuratObject(ctsGene)
+  mt = mtcontent[mtcontent$BarcodeID %in% colnames(seurat_object),]
+  seurat_object$percent_mito = setNames(mt[, c(4)], mt[, c(18)])
+  return(seurat_object)
+})
+
+names(seurat_pbDataList) = sample_data$Name
+print(names(seurat_pbDataList))
+for (i in seurat_pbDataList){
+  print(length(i$nCount_RNA))
+}
+#Load metadata
+cellAnnot <- read.delim("/srv/GT/analysis/zajacn/p28443/ccRCC_CellType.tsv")
+cellAnnot$CellBarcode <- reverseComplement(DNAStringSet(str_remove(cellAnnot$CellBarcode, "-1"))) %>% as.character()
+cellAnnot$CellBarcode = paste0(cellAnnot$CellBarcode, "_", cellAnnot$Sample)
+cellAnnot = rbind(cellAnnot, data.frame("CellType" = "non-ccRCC", "CellBarcode" = "CTATCCGGTCACCTTC", "Sample" = "ccRCC_4"))
+cellAnnot = rbind(cellAnnot, data.frame("CellType" = rep("non-ccRCC", length(colnames(seurat_pbDataList$ccRCC_3))), "CellBarcode" = colnames(seurat_pbDataList$ccRCC_3), "Sample" = rep("ccRCC_3", length(colnames(seurat_pbDataList$ccRCC_3)))))
+cellAnnot = rbind(cellAnnot, data.frame("CellType" = rep("non-ccRCC", length(colnames(seurat_pbDataList$Normal))), "CellBarcode" = colnames(seurat_pbDataList$Normal), "Sample" = rep("Normal", length(colnames(seurat_pbDataList$Normal)))))
+
+#Filter out cells with high mt content
+seurat_pbDataList <- lapply(seurat_pbDataList, function(pbDir){
+  pbDir = subset(pbDir, percent_mito < 30)
+  return(pbDir)
+})
+
+#Keep in annotation only those cells with low mt content
+cellAnnot = cellAnnot[cellAnnot$CellBarcode %in% unique(unlist(lapply(seurat_pbDataList, colnames))),]
+
+sce_pbDataList=NULL
+#Create count matrices and make SingleCellExperiment Objects
+for (i in names(seurat_pbDataList)[c(2,4,5)]){
+  count.matrix <- seurat_pbDataList[[i]][["RNA"]]$counts %>% as.matrix
+  count.matrix <- count.matrix %>% round
+  sce <- SingleCellExperiment(assays = list(counts = count.matrix, logcounts = log2(count.matrix + 1)), colData = cellAnnot[cellAnnot$Sample %in% c(i),])
+  sce = sce[rowSums(assay(sce)) > 0,]
+  sce_pbDataList[[i]] = sce
+  
+}
+#Combine all SingleCellExperiment Objects
+# sce_combined = combineCols(sce_pbDataList$Normal, 
+#                            sce_pbDataList$ccRCC_2, 
+#                            sce_pbDataList$ccRCC_3, 
+#                            sce_pbDataList$ccRCC_4, 
+#                            sce_pbDataList$ccRCC_5, 
+#                            delayed=FALSE, fill=0, use.names=TRUE)
+#saveRDS(sce_combined, "/srv/GT/analysis/zajacn/p28443/o31598_customFilteredIsoforms/sce_object.rds")
+
+#Calculate observational weights
+sce_pbDataList = lapply(sce_pbDataList, function(x){
+  x <- zinbwave(x, observationalWeights = TRUE, BPPARAM = MulticoreParam(10))
+  colnames(colData(x)) = c("cell_type", "cell_barcode", "Sample")
+  return(x)
+})
+
+saveRDS(sce_pbDataList, "/srv/GT/analysis/zajacn/p28443/o31598_customFilteredIsoforms/zinbwave_sce_object.rds")
+
+
+#Perform the differential isoform expression analysis
+de_result = lapply(sce_pbDataList, function(x){
+  de_results <- cell_type_DE(x, 
+                             AdjPvalue = 0.05, 
+                             mode = "both",
+                             compute_weights = FALSE)
+  return(de_results)
+})
+
+saveRDS(de_result, "/srv/GT/analysis/zajacn/p28443/o31598_customFilteredIsoforms/DifferentialIsoformExpression.rds")
+```
+
+
+```{r setup, include=FALSE}
+de_result = readRDS("DifferentialIsoformExpression.rds")
+sce_pbDataList = readRDS("zinbwave_sce_object.rds")
+```
+
+# Detecting isoform expression with percentile correlation 
+
+```{r setup, include=FALSE}
+
+#Exclude minor isoforms
+nominor = NULL
+for (i in names(sce_pbDataList)){
+  featInfo <- ezRead.table(paste0(sample_data[sample_data$Name == i,]$PigeonIsoformFiltering, "/isoforms_seurat/genes.tsv"), header = FALSE, row.names = NULL) # , col_names = FALSE)
+  colnames(featInfo) <- c("transcript", "gene_name")
+  featInfo = featInfo %>% 
+    separate(transcript, into = c("transcript", "geneid"), sep = ":") %>% 
+    left_join(isoforms[isoforms$Sample == i,], by = "transcript") %>% 
+    mutate(transcript = paste0(transcript, ":", geneid)) %>% 
+    dplyr::select(TamaID, gene_name) %>% 
+    rename(transcript = TamaID, gene = gene_name)
+  minor <- detect_minor_isoforms(data.frame(assays(sce_pbDataList[[i]])$counts)  %>%
+                           rownames_to_column("transcript"), 
+                           id_table = cellAnnot[cellAnnot$CellBarcode %in% colnames(sce_pbDataList[[i]]),] %>% 
+                             rownames_to_column() %>% 
+                           dplyr::select(CellBarcode,CellType) %>% 
+                           rename(cell = "CellBarcode", cell_type = "CellType"),
+                               gene_tr_table = featInfo,
+                               gene_expr_proportion = 0.1,
+                               isoform_col = "transcript")
+  excl_minor <- filter(minor, minor_isoform == FALSE)
+  df <- data.frame(assays(sce_pbDataList[[i]])$counts)  %>%
+                           rownames_to_column("transcript") %>% 
+  filter(transcript %in% excl_minor$transcript)
+  nominor[[i]] = df
+}
+
+# remove transcripts from single-isoform genes
+nosingle = NULL
+for (i in names(nominor)){
+  featInfo <- ezRead.table(paste0(sample_data[sample_data$Name == i,]$PigeonIsoformFiltering, "/isoforms_seurat/genes.tsv"), header = FALSE, row.names = NULL) # , col_names = FALSE)
+  colnames(featInfo) <- c("transcript", "gene_name")
+  featInfo = featInfo %>% 
+    separate(transcript, into = c("transcript", "geneid"), sep = ":") %>% 
+    left_join(isoforms[isoforms$Sample == i,], by = "transcript") %>% mutate(transcript = paste0(transcript, ":", geneid)) %>% 
+    dplyr::select(TamaID, gene_name) %>% rename(transcript = TamaID, gene = gene_name)
+  gspliced <- nominor[[i]] %>% 
+    dplyr::select(transcript) %>% 
+    left_join(featInfo, by = "transcript") %>% 
+    group_by(gene) %>%
+    filter(n() > 1)
+  df <- nominor[[i]] %>% filter(transcript %in% gspliced$transcript)
+  nosingle[[i]] = df
+}
+
+#How many are left
+x = nosingle$ccRCC_2$transcript
+y = nosingle$ccRCC_4$transcript
+z = nosingle$ccRCC_5$transcript
+ggvenn(list("ccRCC_2" = x, "ccRCC_4" = y, "ccRCC_5" = z)) # they share 428 isoforms that are not minor and not sinlge isoform per gene
+
+corrs = NULL
+for (i in names(nosingle)){
+  cors <- percentile_cor(nosingle[[i]], 
+                         id_table = cellAnnot[cellAnnot$CellBarcode %in% colnames(sce_pbDataList[[i]]),] %>% 
+                           rownames_to_column() %>% 
+                           dplyr::select(CellBarcode,CellType) %>% 
+                           rename(cell = "CellBarcode", cell_type = "CellType"),
+                         percentile_no = 10,
+                         isoform_col = "transcript")
+  corrs[[i]] = cors
+}
+```
+
+# Semi-supervised isoform clustering
+
+```{r setup, include=FALSE}
+#Create clusters
+
+clusters = lapply(corrs, function(x){
+  clusters <- cluster_isoforms(x, deepSplit = 4, pamStage = FALSE, 
+                             minClusterSize = 20)
+  return(clusters)
+})
+
+#Filter clusters for minimum correlation of 0.9
+
+filt_clusters = NULL
+for (i in names(clusters)){
+  
+  clusters_filt <- filter_clusters(clusters[[i]], cor_matrix = corrs[[i]],
+                                 min_cor = 0.9, lowcor_threshold = 2,
+                                 contains_unclustered = TRUE,
+                                 size_filter = TRUE, size_threshold = 10)
+  filt_clusters[[i]] = clusters_filt
+}
+
+#Expand clusters 
+
+expand_clusters = NULL
+for (i in names(filt_clusters)){
+  clusters_expanded <- expand_clusters(nosingle[[i]], 
+                           isoform_col = "transcript", 
+                           id_table =  cellAnnot[cellAnnot$CellBarcode %in% colnames(sce_pbDataList[[i]]),] %>% 
+                           rownames_to_column() %>% 
+                           dplyr::select(CellBarcode,CellType) %>% 
+                           rename(cell = "CellBarcode", cell_type = "CellType"),
+                           cluster_list = filt_clusters[[i]][2:length(filt_clusters[[i]])],
+                           unclustered = filt_clusters[[i]][[1]],
+                           force_expand = FALSE, 
+                           expand_threshold = 0.9,
+                           method = "percentile")
+  expand_clusters[[i]] = clusters_expanded
+}
+
+# Merge spurious clusters 
+
+merge_clusters = NULL
+for (i in names(filt_clusters)){
+  merge.output <- merge_clusters(nosingle[[i]], 
+                           id_table = cellAnnot[cellAnnot$CellBarcode %in% colnames(sce_pbDataList[[i]]),] %>% 
+                           rownames_to_column() %>% 
+                           dplyr::select(CellBarcode,CellType) %>% 
+                           rename(cell = "CellBarcode", cell_type = "CellType"),
+                           cluster_list = expand_clusters[[i]]$expanded,
+                           method = "percentile",
+                           dynamic = FALSE,
+                           height_cutoff = 0.1,
+                           isoform_col = "transcript")
+  merge_clusters[[i]] = merge.output
+}
+
+#Skipping further noisy clusters filtering because we don't really have that
+#Create cluster profile plots
+
+plots = NULL
+for (i in names(merge_clusters)){
+  scaled <- scale_isoforms(nosingle[[i]],
+                           method = "classic", 
+                           isoform_col = "transcript")
+  patterns_merged <- map(merge_clusters[[i]],
+                         ~calculate_cluster_profile(scaled,
+                                                    id_table =
+                                                      cellAnnot[cellAnnot$CellBarcode %in% colnames(sce_pbDataList[[i]]),] %>% rownames_to_column() %>% dplyr::select(CellBarcode,CellType) %>% rename(cell = "CellBarcode", cell_type = "CellType"),
+                                                    isoform_col = "transcript"))
+  ctlabs = c("ccRCC", "non-ccRCC")
+  pattern_plots_merged <- map(patterns_merged, plot_cluster_profile, ct_labels = ctlabs)
+  plots[[i]] = pattern_plots_merged
+}
+
+#Compare isoforms
+final = NULL
+for (x in names(merge_clusters)){
+  sub_final = NULL
+  for (i in names(merge_clusters[[x]]$clusters)){
+    df = data.frame(isoforms = merge_clusters[[x]]$clusters[[i]], cluster = i, Sample = x)
+    sub_final = rbind(sub_final, df)
+  }
+  final = rbind(final, sub_final)
+}
+
+write_delim(sub_final, "acorde_merged_clusters.csv", delim = "\t")
+
+##What is the overlap between clusters
+vens = NULL
+for (i in seq(1,5,1)){
+  x = final[final$Sample == "ccRCC_2" & final$cluster == i,]$isoforms
+  y = final[final$Sample == "ccRCC_4" & final$cluster == i,]$isoforms
+  z = final[final$Sample == "ccRCC_5" & final$cluster == i,]$isoforms
+  ven = ggvenn(list("ccRCC_2" = x, "ccRCC_4" = y, "ccRCC_5" = z))
+  vens[[i]] = ven
+}
+
+```
+
+# Are any genes positive for Differential isoform usage
+
+```{r setup, include=FALSE}
+DIU_results = NULL
+for (i in names(plots)){
+  featInfo <- ezRead.table(paste0(sample_data[sample_data$Name == i,]$PigeonIsoformFiltering, "/isoforms_seurat/genes.tsv"), header = FALSE, row.names = NULL) # , col_names = FALSE)
+  colnames(featInfo) <- c("transcript", "gene_name")
+  featInfo = featInfo %>% 
+    separate(transcript, into = c("transcript", "geneid"), sep = ":") %>% 
+    left_join(isoforms[isoforms$Sample == i,], by = "transcript") %>% mutate(transcript = paste0(transcript, ":", geneid)) %>% 
+    dplyr::select(TamaID, gene_name) %>% rename(transcript = TamaID, gene = gene_name)
+  clusters_diu <- keep_DIU(merge_clusters[[i]], 
+                         gene_tr_table = featInfo)
+  DIU_results[[i]] = clusters_diu
+}
+```

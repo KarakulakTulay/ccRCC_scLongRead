@@ -1,0 +1,185 @@
+---
+title: "mito content"
+output: 
+  html_document:
+    self_contained: true
+    includes:
+     in_header: !expr system.file("templates/fgcz_header.html", package="ezRun", lib.loc=.libPaths())
+    css: !expr system.file("templates/fgcz.css", package="ezRun", lib.loc=.libPaths())
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+# {.tabset}
+
+## Overview
+Started on `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`
+
+We look in detail at the mitochondrial content per cell and compare that across technologies. We compute the mitochondrial content from the bam files.
+
+Additionally, for the PacBio data we check if mitochondrial content in a cell is correlated with other quality associated parameters like
+
+- read length
+- percentage of full-splice-match, ....
+
+These other statistics are computed only from non-mitochondrial reads!
+
+We find that
+
+- mitochondrial content in Illumina and PacBio is highly correlated
+- higher mitochondrial content in a cell is associated with
+ - higher percentage of shorter reads (< 500nt)
+ - fewer full-splice_match reads
+ - more intergenic reads
+ - more reads in the "undefined_category" (reads in this category are reads that are in the bam file but not in the anno file; it looks like these reads are removed in the scisoseq-collapse step)
+ - filtering of cells based on their mitochondrial content, e.g. < 20% could be helpful
+ 
+
+
+
+```{r, message=FALSE, warning=FALSE}
+library(Seurat)
+library(HDF5Array)
+library(ezRun)
+library(RColorBrewer)
+library(SingleCellExperiment)
+library(pheatmap)
+library(DropletUtils)
+library(scuttle)
+library(BiocParallel)
+library(data.table)
+library(ggplot2)
+library(tidyverse)
+library(Rsamtools)
+library(GenomicAlignments)
+library(ggpubr)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, knitr.table.format = "html")
+param <- list(cores = 8, npcs = 20, minMapQuality=0, keepMultiHits=TRUE, clusterResolution=1)
+
+BPPARAM <- MulticoreParam(workers = param$cores)
+register(BPPARAM)
+
+source("setup.R")
+
+```
+
+
+```{r}
+# sampleInfo <- compileMatchedReads_20240603(sampleInfo = sampleInfo, cbStart = cbStart, 
+#                                            fastOverlapOnly=FALSE, nCores=4,
+#                                            scratchDir="/srv/GT/analysis/p28443-Hella/p28443_read-matching_20240603")
+sampleInfo <- compileCellStats_20240603(sampleInfo = sampleInfo, 
+                                           scratchDir="/srv/GT/analysis/p28443-Hella/p28443_read-matching_20240603")
+
+```
+
+
+
+
+```{r}
+
+samples <- sampleInfo$Name
+
+samples <- sampleInfo$Name
+cellInfoList <- lapply(sampleInfo$cellStatsFile, function(qsFile){
+  qsFile %>% qs::qread()
+})
+names(cellInfoList) <- samples
+
+cellInfoList <- lapply(cellInfoList, function(x){x %>% rownames_to_column("Barcode")})
+
+cellInfo <- rbindlist(cellInfoList, idcol="Sample")
+cellInfo$Sample <- factor(cellInfo$Sample, levels=samples)
+
+categoryNames <- c("antisense", "full-splice_match", "fusion", "genic", "genic_intron", 
+"incomplete-splice_match", "intergenic", "moreJunctions", "novel_in_catalog", 
+"novel_not_in_catalog", "undefined_category")
+
+class(cellInfo) <- "data.frame"
+
+```
+
+## Mitochondrial Content
+
+
+```{r, fig.width=4, fig.height=3}
+
+
+ggplot(cellInfo, aes(x=pbPercentMito, y=illPercentMito, color=Sample)) + geom_point() + 
+  scale_color_manual(values=myColors) + geom_abline(slope=1, intercept=0) + xlim(0, 100) + ylim(0, 100)
+
+
+
+
+# ggplot(cellInfo, aes(x=pbPercentMito, y=percentFSM, color=Sample)) + geom_point() + 
+#   scale_color_manual(values=myColors)
+
+
+
+
+```
+
+## Correlation with PacBio read length
+
+```{r}
+
+ggplot(cellInfo, aes(x=pbPercentMito, y=percentShort, color=Sample)) + geom_point() + 
+  scale_color_manual(values=myColors) + xlim(0, 100) + ylim(0, 100)
+
+```
+
+```{r , fig.width=8, fig.height=3}
+
+ggplot(cellInfo, aes(x=pbPercentMito, y=percentShort, color=Sample)) + geom_point() + 
+  scale_color_manual(values=myColors) + facet_wrap(~ Sample, ncol=5)  + xlim(0, 100) + ylim(0, 100) +
+  theme(legend.position = "none")
+
+
+
+```
+
+## Correlation with PacBio read categories
+
+
+```{r, fig.width=8, fig.height=3}
+
+cellInfoPercent <- cellInfo
+cellInfoPercent[ , categoryNames] <- cellInfo[ , categoryNames] / rowSums(cellInfo[ , categoryNames]) * 100
+#cor(cellInfo$pbPercentMito, cellInfoPercent[ , categoryNames], method = "spearman")
+
+avgPercent <- colMeans(cellInfoPercent[ , categoryNames])
+orderedCategories <- avgPercent %>% sort(decreasing = TRUE) %>% names()
+
+for (cn in orderedCategories){
+  xx <- cellInfoPercent[ , c("Sample", "pbPercentMito")]
+  xx$catPercent <- shrinkToRange(cellInfoPercent[[cn]], c(0, 70))
+  p <- ggplot(xx, aes(x=pbPercentMito, y=catPercent, color=Sample)) + geom_point() + ylim(0, 70) +
+    scale_color_manual(values=myColors) + facet_wrap(~ Sample, ncol = 5) + ggtitle(cn) + theme(legend.position = "none")
+  print(p)
+  
+}
+
+
+```
+
+## Data
+
+```{r}
+
+ezInteractiveTableRmd(cellInfo)
+
+```
+
+
+## Session Info
+
+```{r}
+
+ezSessionInfo()
+
+```
+
+
+

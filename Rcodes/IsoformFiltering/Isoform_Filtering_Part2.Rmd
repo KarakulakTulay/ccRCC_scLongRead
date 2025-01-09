@@ -1,0 +1,313 @@
+---
+title: "Isoform_Filtering"
+author: "Tülay Karakulak"
+date: "2024-08-13"
+output: html_document
+---
+
+title: "Data Processing - Filter data/Select Isoforms based on squanti_qc output, TSS ratio and mitochondrial contaminations." 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r required_libs}
+library(Seurat)
+library(patchwork)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(rmarkdown)
+library(harmony)
+library(Matrix)
+library(cowplot)
+library(RColorBrewer)
+library(viridis)
+library(ggpubr)
+set.seed(12345)
+```
+
+## read Seurat Objects
+```{r ReadCountMatrices,  message=FALSE}
+# Gene Level Analysis
+# Initialize the Seurat object with the non-normalized data
+# we use unfiltered gene file for the ccRCC cell selection!! 
+# Cancer
+ccRCC_2.data_gene <- Read10X(data.dir = "/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC2/scisoseq.seurat_info/genes_seurat/", gene.column = 2)
+ccRCC_2 <- CreateSeuratObject(counts = ccRCC_2.data_gene, project = "ccRCC_2", min.cells = 3, min.features = 100)
+
+ccRCC_3.data_gene <- Read10X(data.dir = "/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC3/scisoseq.seurat_info/genes_seurat/", gene.column = 2)
+ccRCC_3 <- CreateSeuratObject(counts = ccRCC_3.data_gene, project = "ccRCC_3", min.cells = 3, min.features = 100)
+
+ccRCC_4.data_gene <- Read10X(data.dir = "/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC4/scisoseq.seurat_info/genes_seurat/", gene.column = 2)
+ccRCC_4 <- CreateSeuratObject(counts = ccRCC_4.data_gene, project = "ccRCC_4", min.cells = 3, min.features = 100)
+
+ccRCC_5.data_gene <- Read10X(data.dir = "/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/ccRCC5/scisoseq.seurat_info/genes_seurat/", gene.column = 2)
+ccRCC_5 <- CreateSeuratObject(counts = ccRCC_5.data_gene, project = "ccRCC_5", min.cells = 3, min.features = 100)
+
+# Normal
+healthy.data_gene <- Read10X(data.dir = "/Users/tulaykarakulak/Documents/GitHub/ccRCC_scLongRead/InputFiles/Normal/scisoseq.seurat_info/genes_seurat/", gene.column = 2)
+healthy_gene <- CreateSeuratObject(counts = healthy.data_gene, project = "healthy", min.cells = 3, min.features = 100)
+
+kidney.combined <- list(healthy = healthy_gene, ccRCC_2 = ccRCC_2,  ccRCC_3 = ccRCC_3,  ccRCC_4 = ccRCC_4,  ccRCC_5 = ccRCC_5)
+
+## Isoform Level Analysis
+# Cancer
+ccRCC_2.data_isoform <- Read10X(data.dir = "/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_2_threecells_072024IsoformFiltering/isoforms_seurat/", gene.column = 1)
+ccRCC_2_isoform <- CreateSeuratObject(counts = ccRCC_2.data_isoform, project = "ccRCC_2", min.cells = 1, min.features = 100)
+
+ccRCC_3.data_isoform <- Read10X(data.dir = "/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_3_2_C01_072024IsoformFiltering/isoforms_seurat/", gene.column = 1)
+ccRCC_3_isoform <- CreateSeuratObject(counts = ccRCC_3.data_isoform, project = "ccRCC_3", min.cells = 1, min.features = 100)
+
+ccRCC_4.data_isoform <- Read10X(data.dir = "/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_4_3_D01_072024IsoformFiltering/isoforms_seurat/", gene.column = 1)
+ccRCC_4_isoform <- CreateSeuratObject(counts = ccRCC_4.data_isoform, project = "ccRCC_4", min.cells = 1, min.features = 100)
+
+ccRCC_5.data_isoform <- Read10X(data.dir = "/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_5_4_E01_072024IsoformFiltering/isoforms_seurat/", gene.column = 1)
+ccRCC_5_isoform <- CreateSeuratObject(counts = ccRCC_5.data_isoform, project = "ccRCC_5", min.cells = 1, min.features = 100)
+
+healthy.data_isoform <- Read10X(data.dir = "/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_1_threecells_072024IsoformFiltering/isoforms_seurat/", gene.column = 1)
+healthy_isoform <- CreateSeuratObject(counts = healthy.data_isoform, project = "healthy", min.cells = 1, min.features = 100)
+
+kidney.combined_isoform <- list(healthy = healthy_isoform, cRCC_2 = ccRCC_2_isoform,  ccRCC_3 = ccRCC_3_isoform,  ccRCC_4 = ccRCC_4_isoform,  ccRCC_5 = ccRCC_5_isoform)
+```
+
+
+## read TSS ratios from sqanti - short and long read files
+```{r read_AnnotationFiles}
+isoform_annotations_normal_tss <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/SQANTI_QC/o31598_SMRTLink_IsoSeq/SQANTI3_QC/Normal/scisoseq_transcripts.sorted.filtered_lite_classification.txt', header = TRUE, sep='\t')
+
+# ccRCC_2
+isoform_annotations_ccRCC_2_tss  <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/SQANTI_QC/o31598_SMRTLink_IsoSeq/SQANTI3_QC/ccRCC_2/scisoseq_transcripts.sorted.filtered_lite_classification.txt', header = TRUE, sep='\t')
+
+# ccRCC_3
+isoform_annotations_ccRCC_3_tss  <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/SQANTI_QC/o31598_SMRTLink_IsoSeq/SQANTI3_QC/ccRCC_3/scisoseq_transcripts.sorted.filtered_lite_classification.txt', header = TRUE, sep='\t')
+
+isoform_annotations_ccRCC_4_tss  <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/SQANTI_QC/o31598_SMRTLink_IsoSeq/SQANTI3_QC/ccRCC_4/scisoseq_transcripts.sorted.filtered_lite_classification.txt', header = TRUE, sep='\t')
+
+isoform_annotations_ccRCC_5_tss  <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/SQANTI_QC/o31598_SMRTLink_IsoSeq/SQANTI3_QC/ccRCC_5/scisoseq_transcripts.sorted.filtered_lite_classification.txt', header = TRUE, sep='\t')
+```
+
+### read Filtered SQANTI3 Files
+```{r read_AnnotationFiles}
+isoform_annotations_normal <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_1_threecells_072024IsoformFiltering/scisoseq_classification.filtered_lite_custom_classification.txt', header = TRUE, sep='\t')
+
+# ccRCC_2
+isoform_annotations_ccRCC_2 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_2_threecells_072024IsoformFiltering/scisoseq_classification.filtered_lite_custom_classification.txt', header = TRUE, sep='\t')
+
+# ccRCC_3
+isoform_annotations_ccRCC_3 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_3_2_C01_072024IsoformFiltering/scisoseq_classification.filtered_lite_custom_classification.txt', header = TRUE, sep='\t')
+
+# ccRCC_4
+isoform_annotations_ccRCC_4 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_4_3_D01_072024IsoformFiltering/scisoseq_classification.filtered_lite_custom_classification.txt', header = TRUE, sep='\t')
+
+# ccRCC_5
+isoform_annotations_ccRCC_5 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_5_4_E01_072024IsoformFiltering/scisoseq_classification.filtered_lite_custom_classification.txt', header = TRUE, sep='\t')
+```
+
+## select isoform IDs with TSS > 1
+```{r read_AnnotationFiles}
+isoform_annotations_normal_tss_isoforms <- isoform_annotations_normal_tss[isoform_annotations_normal_tss$ratio_TSS > 1, 'isoform']
+isoform_annotations_ccRCC_2_tss_isoforms  <- isoform_annotations_ccRCC_2_tss[isoform_annotations_ccRCC_2_tss$ratio_TSS > 1, 'isoform']
+isoform_annotations_ccRCC_3_tss_isoforms  <- isoform_annotations_ccRCC_3_tss[isoform_annotations_ccRCC_3_tss$ratio_TSS > 1, 'isoform']
+isoform_annotations_ccRCC_4_tss_isoforms  <- isoform_annotations_ccRCC_4_tss[isoform_annotations_ccRCC_4_tss$ratio_TSS > 1, 'isoform']
+isoform_annotations_ccRCC_5_tss_isoforms  <- isoform_annotations_ccRCC_5_tss[isoform_annotations_ccRCC_5_tss$ratio_TSS > 1, 'isoform']
+```
+
+
+## Filter based on the Mito content
+### read file
+```{r mitoContent}
+mit_cont <- read.csv('/Users/tulaykarakulak/Downloads/mito content.csv', header = TRUE)
+head(mit_cont)
+
+mit_cont_cells_filtered <- mit_cont[mit_cont$pbPercentMito < 30, ]
+# add Barcode IDs with '1'
+#mit_cont_cells_filtered_Barcode_IDs <- mit_cont_cells_filtered %>% mutate(Barcode_ID = paste0(Barcode, '-', '1'))
+```
+
+
+Barcode Ids are not the same as in Seurat Object. We need to match them.
+## read Seurat Files to Match
+```{r read_AnnotationFiles}
+scisoseq_file_normal <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_1_threecells_072024IsoformFiltering/scisoseq.annotated-prefilter.info.csv', header = TRUE, sep='\t')
+# ccRCC_2
+scisoseq_file_ccrcc2 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_2_threecells_072024IsoformFiltering/scisoseq.annotated-prefilter.info.csv', header = TRUE, sep='\t')
+# ccRCC_3
+scisoseq_file_ccrcc3 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_3_2_C01_072024IsoformFiltering/scisoseq.annotated-prefilter.info.csv', header = TRUE, sep='\t')
+
+scisoseq_file_ccrcc4 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_4_3_D01_072024IsoformFiltering/scisoseq.annotated-prefilter.info.csv', header = TRUE, sep='\t')
+
+scisoseq_file_ccrcc5 <- read.csv('/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/o31598_SMRTLink_IsoSeq/o31598_customFilteredIsoforms/p28443_o31598_5_4_E01_072024IsoformFiltering/scisoseq.annotated-prefilter.info.csv', header = TRUE, sep='\t')
+```
+
+
+```{r selectCells}
+Normal_Cells <- unique(paste0(scisoseq_file_normal[scisoseq_file_normal$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'Normal', 'Barcode'], 'BC'], '-', '1'))
+
+ccRCC2_Cells <-  unique(paste0(scisoseq_file_ccrcc2[scisoseq_file_ccrcc2$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_2', 'Barcode'], 'BC'], '-', '1'))
+
+ccRCC3_Cells <-  unique(paste0(scisoseq_file_ccrcc3[scisoseq_file_ccrcc3$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_3', 'Barcode'], 'BC'], '-', '1'))
+
+ccRCC4_Cells <-  unique(paste0(scisoseq_file_ccrcc4[scisoseq_file_ccrcc4$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_4', 'Barcode'], 'BC'], '-', '1'))
+
+ccRCC5_Cells <-  unique(paste0(scisoseq_file_ccrcc5[scisoseq_file_ccrcc5$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_5', 'Barcode'], 'BC'], '-', '1'))
+```
+
+
+## Filter Cells and Isoforms from scisoseq_files - some isoforms might not be in the Isoform Count Matrices - ribosomal or mitochondrial isoforms are filtered
+```{r FilterIsoformsandCells}
+# filter cells based on mito content and filter isoforms if they are in the filtered Seurat Object
+scisoseq_file_normal_filtered <- scisoseq_file_normal[scisoseq_file_normal$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'Normal', 'Barcode'] & scisoseq_file_normal$pbid %in% intersect(isoform_annotations_normal_tss_isoforms, isoform_annotations_normal$isoform), ] # 390 cells 105974 isoforms
+
+scisoseq_file_ccRCC2_filtered <- scisoseq_file_ccrcc2[scisoseq_file_ccrcc2$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_2', 'Barcode'] & scisoseq_file_ccrcc2$pbid %in% intersect(isoform_annotations_ccRCC_2_tss_isoforms, isoform_annotations_ccRCC_2$isoform), ] # 334 cells 100707 isoforms
+
+scisoseq_file_ccRCC3_filtered <- scisoseq_file_ccrcc3[scisoseq_file_ccrcc3$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_3', 'Barcode'] & scisoseq_file_ccrcc3$pbid %in% intersect(isoform_annotations_ccRCC_3_tss_isoforms, isoform_annotations_ccRCC_3$isoform), ] # 272 cells # 59096 isoform
+
+scisoseq_file_ccRCC4_filtered <- scisoseq_file_ccrcc4[scisoseq_file_ccrcc4$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_4', 'Barcode'] & scisoseq_file_ccrcc4$pbid %in% intersect(isoform_annotations_ccRCC_4_tss_isoforms, isoform_annotations_ccRCC_4$isoform), ] # 1016 cells 86424 isoforms
+
+scisoseq_file_ccRCC5_filtered <- scisoseq_file_ccrcc5[scisoseq_file_ccrcc5$BCrev %in% mit_cont_cells_filtered[mit_cont_cells_filtered$Sample == 'ccRCC_5', 'Barcode'] & scisoseq_file_ccrcc5$pbid %in% intersect(isoform_annotations_ccRCC_5_tss_isoforms, isoform_annotations_ccRCC_5$isoform), ] # 366 cells 94970 isoforms
+```
+
+
+```{r saveFiles}
+saveRDS(scisoseq_file_normal_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_normal_filtered.RDS') # 101477 # 390 cells
+saveRDS(scisoseq_file_ccRCC2_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC2_filtered.RDS') # 96847 # 334 cells
+saveRDS(scisoseq_file_ccRCC3_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC3_filtered.RDS') # 56384 # 272 cells
+saveRDS(scisoseq_file_ccRCC4_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC4_filtered.RDS') # 82847 # 1016 cells
+saveRDS(scisoseq_file_ccRCC5_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC5_filtered.RDS') # 91132 # 366 cells
+```
+
+
+## select Isoform:Gene Names 
+```{r read_AnnotationFiles}
+isoform_annotations_normal_isoform_gene_tss <- scisoseq_file_normal_filtered %>% 
+  dplyr::select(pbid, gene) %>% dplyr::distinct() %>%
+  dplyr::mutate(isoform_gene = paste(pbid, gene, sep = ":")) %>% 
+  dplyr::pull(isoform_gene) # 105974 
+ 
+isoform_annotations_normal_isoform_gene_tss <- gsub("_", "+", isoform_annotations_normal_isoform_gene_tss)
+
+isoform_annotations_ccRCC_2_isoform_gene_tss  <- scisoseq_file_ccRCC2_filtered %>% 
+  dplyr::select(pbid, gene) %>% dplyr::distinct() %>%
+  dplyr::mutate(isoform_gene = paste(pbid, gene, sep = ":")) %>% 
+  dplyr::pull(isoform_gene) # 100707
+
+isoform_annotations_ccRCC_2_isoform_gene_tss <- gsub("_", "+", isoform_annotations_ccRCC_2_isoform_gene_tss)
+
+isoform_annotations_ccRCC_3_isoform_gene_tss  <- scisoseq_file_ccRCC3_filtered %>% 
+  dplyr::select(pbid, gene) %>% dplyr::distinct() %>%
+  dplyr::mutate(isoform_gene = paste(pbid, gene, sep = ":")) %>% 
+  dplyr::pull(isoform_gene) # 59096
+
+isoform_annotations_ccRCC_3_isoform_gene_tss <- gsub("_", "+", isoform_annotations_ccRCC_3_isoform_gene_tss)
+
+
+isoform_annotations_ccRCC_4_isoform_gene_tss  <- scisoseq_file_ccRCC4_filtered %>% 
+  dplyr::select(pbid, gene) %>% dplyr::distinct() %>%
+  dplyr::mutate(isoform_gene = paste(pbid, gene, sep = ":")) %>% 
+  dplyr::pull(isoform_gene) # 86424
+
+isoform_annotations_ccRCC_4_isoform_gene_tss <- gsub("_", "+", isoform_annotations_ccRCC_4_isoform_gene_tss)
+
+
+isoform_annotations_ccRCC_5_isoform_gene_tss  <- scisoseq_file_ccRCC5_filtered %>% 
+  dplyr::select(pbid, gene) %>% dplyr::distinct() %>%
+  dplyr::mutate(isoform_gene = paste(pbid, gene, sep = ":")) %>% 
+  dplyr::pull(isoform_gene)  # 94970
+
+isoform_annotations_ccRCC_5_isoform_gene_tss <- gsub("_", "+", isoform_annotations_ccRCC_5_isoform_gene_tss)
+```
+
+
+## Subset Isoforms with TSS > 1 from Seurat Obj and Cells with Mitoc. content
+```{r subsetSeurat}
+healthy_isoform_subset <- subset(healthy_isoform, features = isoform_annotations_normal_isoform_gene_tss, cells = Normal_Cells)  # 101942
+ccRCC_2_isoform_subset <- subset(ccRCC_2_isoform, features = isoform_annotations_ccRCC_2_isoform_gene_tss, cells =  ccRCC2_Cells) # 97294
+ccRCC_3_isoform_subset <- subset(ccRCC_3_isoform, features = isoform_annotations_ccRCC_3_isoform_gene_tss, cells =  ccRCC3_Cells) # 56596
+ccRCC_4_isoform_subset <- subset(ccRCC_4_isoform, features = isoform_annotations_ccRCC_4_isoform_gene_tss, cells =  ccRCC4_Cells) # 83342
+ccRCC_5_isoform_subset <- subset(ccRCC_5_isoform, features = isoform_annotations_ccRCC_5_isoform_gene_tss, cells =  ccRCC5_Cells) # 91734
+```
+
+
+```{r isolateIsoformAnnotationFiles}
+isoform_annotations_normal_filtered <-  isoform_annotations_normal %>% 
+  dplyr::filter(isoform %in% sapply(strsplit(rownames(healthy_isoform_subset), ":"), '[', 1)) # 101942 
+
+isoform_annotations_ccRCC_2_filtered  <- isoform_annotations_ccRCC_2 %>% 
+  dplyr::filter(isoform %in% sapply(strsplit(rownames(ccRCC_2_isoform_subset), ":"), '[', 1)) # 97294
+
+isoform_annotations_ccRCC_3_filtered  <- isoform_annotations_ccRCC_3 %>% 
+  dplyr::filter(isoform %in% sapply(strsplit(rownames(ccRCC_3_isoform_subset), ":"), '[', 1)) # 56596
+
+isoform_annotations_ccRCC_4_filtered  <- isoform_annotations_ccRCC_4 %>% 
+  dplyr::filter(isoform %in% sapply(strsplit(rownames(ccRCC_4_isoform_subset), ":"), '[', 1)) # 83342
+
+isoform_annotations_ccRCC_5_filtered  <- isoform_annotations_ccRCC_5 %>% 
+  dplyr::filter(isoform %in% sapply(strsplit(rownames(ccRCC_5_isoform_subset), ":"), '[', 1)) # 91734
+```
+
+same number of isoforms for the annotation file and scisoseq
+# saved the isoforms with tss >1, filtered based on many criteria, and mito reads!
+```{r saveFiles}
+saveRDS(healthy_isoform_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/healthy_isoform_subset.RDS')
+saveRDS(ccRCC_2_isoform_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_2_isoform_subset.RDS')
+saveRDS(ccRCC_3_isoform_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_3_isoform_subset.RDS')
+saveRDS(ccRCC_4_isoform_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_4_isoform_subset.RDS')
+saveRDS(ccRCC_5_isoform_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_5_isoform_subset.RDS')
+```
+
+```{r saveFilesAnnotations}
+saveRDS(isoform_annotations_normal_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_normal_filtered.RDS')
+
+saveRDS(isoform_annotations_ccRCC_2_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_2_filtered.RDS')
+
+saveRDS(isoform_annotations_ccRCC_3_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_3_filtered.RDS')
+
+saveRDS(isoform_annotations_ccRCC_4_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_4_filtered.RDS')
+
+saveRDS(isoform_annotations_ccRCC_5_filtered, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/isoform_annotations_ccRCC_5_filtered.RDS')
+```
+
+## filter also scisoseq data, once more to have consistent isoforms
+
+```{r FilterIsoformsandCells}
+# filter cells based on mito content and filter isoforms if they are in the filtered Seurat Object
+scisoseq_file_normal_filtered2 <- scisoseq_file_normal_filtered[scisoseq_file_normal_filtered$pbid %in% isoform_annotations_normal_filtered$isoform, ] # 390 cells 101942 isoforms
+
+scisoseq_file_ccRCC2_filtered2 <- scisoseq_file_ccRCC2_filtered[scisoseq_file_ccRCC2_filtered$pbid %in% isoform_annotations_ccRCC_2_filtered$isoform, ] # 334 cells 97294 isoforms
+
+scisoseq_file_ccRCC3_filtered2 <- scisoseq_file_ccRCC3_filtered[scisoseq_file_ccRCC3_filtered$pbid %in% isoform_annotations_ccRCC_3_filtered$isoform, ] # 272 cells # 56596 isoform
+
+scisoseq_file_ccRCC4_filtered2 <- scisoseq_file_ccRCC4_filtered[scisoseq_file_ccRCC4_filtered$pbid %in% isoform_annotations_ccRCC_4_filtered$isoform, ] # 83342
+
+scisoseq_file_ccRCC5_filtered2 <- scisoseq_file_ccRCC5_filtered[scisoseq_file_ccRCC5_filtered$pbid %in% isoform_annotations_ccRCC_5_filtered$isoform, ] # 91734
+```
+
+
+
+```{r saveFiles}
+saveRDS(scisoseq_file_normal_filtered2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_normal_filtered2.RDS') # 101477 # 390 cells
+saveRDS(scisoseq_file_ccRCC2_filtered2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC2_filtered2.RDS') # 96847 # 334 cells
+saveRDS(scisoseq_file_ccRCC3_filtered2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC3_filtered2.RDS') # 56384 # 272 cells
+saveRDS(scisoseq_file_ccRCC4_filtered2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC4_filtered2.RDS') # 82847 # 1016 cells
+saveRDS(scisoseq_file_ccRCC5_filtered2, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/scisoseq_file_ccRCC5_filtered2.RDS') # 91132 # 366 cells
+```
+
+# subset gene matrices - subsetted based on mitochondria reads!
+```{r subsetGeneMatrices}
+healthy_gene_subset <- subset(healthy_gene, cells = Normal_Cells)  # 18028
+ccRCC_2_gene_subset <- subset(ccRCC_2, cells =  ccRCC2_Cells) # 16759
+ccRCC_3_gene_subset <- subset(ccRCC_3, cells =  ccRCC3_Cells) # 17366
+ccRCC_4_gene_subset <- subset(ccRCC_4, cells =  ccRCC4_Cells) # 17741
+ccRCC_5_gene_subset <- subset(ccRCC_5, cells =  ccRCC5_Cells) # 18074
+```
+
+```{r savegenes}
+saveRDS(healthy_gene_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/healthy_gene_subset.RDS')
+saveRDS(ccRCC_2_gene_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_2_gene_subset.RDS')
+saveRDS(ccRCC_3_gene_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_3_gene_subset.RDS')
+saveRDS(ccRCC_4_gene_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_4_gene_subset.RDS')
+saveRDS(ccRCC_5_gene_subset, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/CustomFilteredIsoforms/SeuratObjs/ccRCC_5_gene_subset.RDS')
+```
+
