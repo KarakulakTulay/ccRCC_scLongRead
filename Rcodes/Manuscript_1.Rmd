@@ -26,7 +26,7 @@ library(ggpubr)
 set.seed(12345)
 ```
 
-## read Filtered Files
+## read Filtered count matrices
 ```{r readSeuratObjs}
 # Isoform Level
 healthy_isoform_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/InputFiles/SeuratObj_filtered/Isoform_Level/healthy_isoform_subset.RDS')
@@ -43,7 +43,7 @@ ccRCC_4_gene_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/Manuscri
 ccRCC_5_gene_subset <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/InputFiles/SeuratObj_filtered/Gene_Level/ccRCC_5_gene_subset.RDS')
 ```
 
-
+## read scisoseq files
 ```{r readSciSeqFiles}
 scisoseq_file_normal_filtered2 <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/InputFiles/scisoseq_files_filtered/scisoseq_file_normal_filtered.RDS') # 101477 # 390 cells
 scisoseq_file_ccRCC2_filtered2 <- readRDS( '//Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/InputFiles/scisoseq_files_filtered/scisoseq_file_ccRCC2_filtered.RDS') # 96847 # 334 cells
@@ -52,7 +52,7 @@ scisoseq_file_ccRCC4_filtered2 <- readRDS( '/Users/tulaykarakulak/Desktop/Deskto
 scisoseq_file_ccRCC5_filtered2 <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/InputFiles/scisoseq_files_filtered/scisoseq_file_ccRCC5_filtered.RDS') # 91132 # 366 cells
 ```
 
-
+## read Isoform Annotation Files
 ```{r readIsoformAnnotationFiles}
 isoform_annotations_normal_filtered_w_CellNumber <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/InputFiles/isoform_annotation_files_filtered/isoform_annotations_normal_filtered_w_CellNumber.RDS')
 isoform_annotations_ccRCC_2_filtered_w_CellNumber <- readRDS( '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision_Codes_Supplementaries/InputFiles/isoform_annotation_files_filtered/isoform_annotations_ccRCC_2_filtered_w_CellNumber.RDS')
@@ -63,7 +63,7 @@ isoform_annotations_ccRCC_5_filtered_w_CellNumber <- readRDS('/Users/tulaykaraku
 
 
 # Data Analysis for the Manuscript Figures
-## Figure 1B 
+## Figure 1C
 ```{r SupplementaryFig1A}
 kidney.combined_big <- merge(healthy_gene_subset, y = c(ccRCC_2_gene_subset, ccRCC_3_gene_subset, ccRCC_4_gene_subset, ccRCC_5_gene_subset), add.cell.ids = c("healthy","ccRCC_2", "ccRCC_3", "ccRCC_4", "ccRCC_5"), project = "ccRCC")
 kidney.combined_big_isoform <- merge(healthy_isoform_subset, y = c(ccRCC_2_isoform_subset ,ccRCC_3_isoform_subset, ccRCC_4_isoform_subset, ccRCC_5_isoform_subset), add.cell.ids = c("healthy","ccRCC_2", "ccRCC_3", "ccRCC_4", "ccRCC_5"), project = "ccRCC")
@@ -79,7 +79,7 @@ b
 
 
 ### Supplementary Figure 1A
-```{r SupplementaryFig1B}
+```{r SupplementaryFig1A}
 cellNumbers <- c(390, 334, 272, 1016, 366)
 
 kidney.combined2 <- list(healthy = healthy_gene_subset, ccRCC_2 = ccRCC_2_gene_subset,  ccRCC_3 = ccRCC_3_gene_subset,  ccRCC_4 = ccRCC_4_gene_subset,  ccRCC_5 = ccRCC_5_gene_subset)
@@ -107,33 +107,19 @@ CellReadMeanNumber
 #ggsave("Supplementary_1A_CellReadMeanNumber.tiff", plot = CellReadMeanNumber, bg = "transparent", width = 8, height = 5, dpi=600)
 ```
 
-
-```{r QC}
-# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
-kidney.combined_big2[["percent.mt"]] <- PercentageFeatureSet(kidney.combined_big2, pattern = "^MT-")
-kidney.combined_big2[["percent.ribo"]] <- PercentageFeatureSet(kidney.combined_big2, pattern = "^RP[SL]")
-
-head(kidney.combined_big2@meta.data, 5) # number of unique genes and total molecules 
-
-VlnPlot(kidney.combined_big2, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
-```
-
-```{r featurescatter}
-plot1 <- FeatureScatter(kidney.combined_big2, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot1
-plot2 <- FeatureScatter(kidney.combined_big_isoform, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot2
-```
-
 # Number of Transcript and Number of Novel Isoform details in the Manuscript
 ```{r CheckMeans}
-# Check how many isoforms are detected on average
-mean(dim(isoform_annotations_ccRCC_2_filtered_w_CellNumber)[1], dim(isoform_annotations_ccRCC_3_filtered_w_CellNumber)[1], dim(isoform_annotations_ccRCC_4_filtered_w_CellNumber)[1], dim(isoform_annotations_ccRCC_5_filtered_w_CellNumber)[1], dim(isoform_annotations_normal_filtered_w_CellNumber)[1]) # 97294
+# Check how many isoforms are detected on average  - STATS BEFORE MERGING THE TRANSCRIPT IDS
+Avg_Transcript <- mean(c(dim(isoform_annotations_ccRCC_2_filtered_w_CellNumber)[1], dim(isoform_annotations_ccRCC_3_filtered_w_CellNumber)[1], dim(isoform_annotations_ccRCC_4_filtered_w_CellNumber)[1], dim(isoform_annotations_ccRCC_5_filtered_w_CellNumber)[1], dim(isoform_annotations_normal_filtered_w_CellNumber)[1])) # 86181.6
 
-mean(dim(isoform_annotations_ccRCC_2_filtered_w_CellNumber[isoform_annotations_ccRCC_2_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_ccRCC_3_filtered_w_CellNumber[isoform_annotations_ccRCC_3_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_ccRCC_4_filtered_w_CellNumber[isoform_annotations_ccRCC_4_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_ccRCC_5_filtered_w_CellNumber[isoform_annotations_ccRCC_5_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_normal_filtered_w_CellNumber[isoform_annotations_normal_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1]) # 38188
+Avg_Novel <- mean(c(dim(isoform_annotations_ccRCC_2_filtered_w_CellNumber[isoform_annotations_ccRCC_2_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_ccRCC_3_filtered_w_CellNumber[isoform_annotations_ccRCC_3_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_ccRCC_4_filtered_w_CellNumber[isoform_annotations_ccRCC_4_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_ccRCC_5_filtered_w_CellNumber[isoform_annotations_ccRCC_5_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1], dim(isoform_annotations_normal_filtered_w_CellNumber[isoform_annotations_normal_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),])[1])) # 31530.8
+
+print(paste('Number of Average Transcript:', Avg_Transcript))
+print(paste('Number of Average Novel Transcript:', Avg_Novel))
+percentage <- Avg_Novel/Avg_Transcript*100
+print(paste("Percentage of Novel Transcripts:", round(percentage, 2), "%"))
 ```
 
-Percentage of Novel Isoforms: 38188/97294*100
 
 ```{r mergeAllSamples}
 isoform_annotations_normal_filtered_w_CellNumber$Group <- 'Normal'
@@ -198,7 +184,7 @@ TranscriptLength_ALL
 #ggsave("Figure_1H.png", plot = TranscriptLength_ALL, bg = "transparent", width = 8, height = 5, dpi=300)
 ```
 
-Statistical Test
+Statistical Test for the length of the isoforms
 t.test(isoform_annotations[isoform_annotations$structural_category == 'full-splice_match', 'length'], isoform_annotations[isoform_annotations$structural_category == 'novel_in_catalog', 'length'])
 
 t.test(isoform_annotations[isoform_annotations$structural_category %in% c('full-splice_match', 'novel_in_catalog'), 'length'], isoform_annotations[isoform_annotations$structural_category == 'incomplete-splice_match', 'length'])
@@ -215,7 +201,7 @@ mean of x mean of y
 1337.6398  988.0966 
 
 ## Supplementary Fig 1B
-```{r Supplementary_Figure2}
+```{r Supplementary_Figure1B}
 # proportion of main categories
 Structural_sub_Category <- isoform_annotations %>%
     group_by(Group, structural_category, subcategory) %>%
@@ -389,6 +375,21 @@ p <- ggplot(df_count, aes(x = bins, y = proportion, fill = structural_category))
 p
 #ggsave("Figure1Ipng", plot = p, bg = "transparent", width = 8, height = 5, dpi=300)
 ```
+Proportion of structural categories across bins 
+df_count %>%
+     group_by(bins, structural_category) %>%
+     summarize(total_count = sum(count), .groups = "drop") %>%
+     group_by(bins) %>%
+     mutate(percentage = (total_count / sum(total_count)) * 100)
+     
+Novel - 33.7 + 21.2 = 54.9
+
+# FSM
+df_count %>%
+     group_by(bins, structural_category) %>%
+     summarize(total_count = sum(count), .groups = "drop") %>%
+     group_by(bins) %>%
+     mutate(percentage = (total_count / sum(total_count)) * 100) %>% dplyr::filter(bins == ">150")
 
 ### Figure 1J
 ```{r TranscriptPerGenePerCell}
@@ -452,8 +453,9 @@ TranscriptPerGenePerCell
 #ggsave("Figure1J_transc_gene_cell.png", plot = TranscriptPerGenePerCell, bg = "transparent", width = 6, height = 5, dpi=300)
 ```
 
-Some genes might have 1 or 2 isoforms across different cells, so they are listed in each category. 
+df_all  %>% dplyr::group_by(Group) %>% dplyr::select(gene, Group, isoformcount) %>% dplyr::distinct() %>% dplyr::filter(isoformcount == 1)  %>% dplyr::summarise(totalNumber = n())
 
+Some genes might have 1 or 2 isoforms across different cells, so they are listed in each category. 
 
 ### Supplementary Figure 1C, 1D, and 1E
 ```{r Supplementary1E}
@@ -553,12 +555,13 @@ UMI_category_long_totalUMIperIsoform_plot <- ggplot(UMI_category_long_totalUMIpe
   #theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   theme(legend.position="right") + 
   theme(axis.text.x = element_blank())
-
+UMI_category_long_totalUMIperIsoform_plot
 #ggsave("Supplementary_Figure1E.png", plot = UMI_category_long_totalUMIperIsoform_plot, bg = "transparent", width = 8, height = 5, dpi=300)
 ```
 
 saveRDS(UMI_category_long_sum, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/UMI_category_long_sum.RDS')   
 saveRDS(UMI_category_long, '/Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/UMI_category_long.RDS')
+
 ## Supplementary Fig 1F and 1G
 ```{r Supplementary1G}
 # Create bins
@@ -600,8 +603,10 @@ fsm_cell_UMI
 #ggsave("Supplementary_Figure1C.png", plot = fsm_cell_UMI, bg = "transparent", width = 8, height = 5, dpi=300)
 ```
 
-# saveDataToDiscuss: saveRDS(UMI_category_long_totalUMIperIsoform, 'Users/tulaykarakulak/Desktop/Desktop2/ManuscriptSubmission/ccRCC_Revision/Figures/Figures/UMI_category_long_totalUMIperIsoform.RDS')
 
+# Percentage of Novel Isoforms found in one cell
+mean(as.vector((isoform_annotations %>% dplyr::select(Group,isoform,CellNumber, structural_category) %>% dplyr::group_by(Group) %>% dplyr::filter(CellNumber == 1) %>% dplyr::filter(structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog')) %>% dplyr::summarise(isoform1 = n()) %>% dplyr::select(isoform1)) / (isoform_annotations %>% dplyr::select(Group,isoform,CellNumber, structural_category) %>% dplyr::group_by(Group) %>% dplyr::filter(structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog')) %>% dplyr::summarise(isoform1 = n()) %>% dplyr::select(isoform1)))$isoform1)
+63.3
 
 # Figure 2 : ORFs and Intrinsically Disordered Transcripts
 ```{r read_ORF_predictions}
@@ -771,6 +776,7 @@ p_novel <- ggplot(df_count_novel, aes(x = bins2, y = proportion, fill = ORFType)
   #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
   theme(axis.text.x = element_blank())
 
+p_novel
 #ggsave("Figure2C.png", plot = p_novel, bg = "transparent", width = 8, height = 5)
 ```
 
@@ -940,6 +946,8 @@ figure2e <- ggplot(ORF_iupred_subNNIC_NIC, aes(y = Disordered, x = subcategory, 
     theme_classic() + 
     theme(axis.text.x = element_blank()) +
     stat_pvalue_manual(stat_test, label = "p.signif", tip.length = 0.02)
+
+figure2e
 #ggsave("Figure2E.png", plot = figure2e, bg = "transparent", width = 8, height = 5)
 ```
 
@@ -988,33 +996,6 @@ ORF_seurat_iupred_plot_forRM
 #ggsave("Figure2D.png", plot = ORF_seurat_iupred_plot, bg = "transparent", width = 8, height = 5)
 ```
 
-## Supplementary 2C
-compare reference match and novel only
-```{r RFM_Novel}
-ORF_seurat_iupred_FSM_forRM_onlyRM <- ORF_seurat_iupred_FSM_forRM %>% dplyr::filter(subcategory == 'reference_match')
-ORF_seurat_iupred_FSM_forRM_RM_novel <- rbind(ORF_seurat_iupred_FSM_forRM_onlyRM[, c(1,2,3, 4, 5)], ORF_iupred_subNNIC_NIC[c(1,2,3,4,10)])
-
-paired_data <- ORF_seurat_iupred_FSM_forRM_RM_novel %>%
-  select(isoform, Disordered, structural_category, associated_gene.x)
-
-library(tidyr)
-long_data <- paired_data %>%
-  pivot_longer(cols = c("Disordered"), 
-               names_to = "Condition", 
-               values_to = "Value")
-
-ggplot(long_data, aes(x = structural_category, y = Value, color = structural_category)) +
-  geom_boxplot() +  # Boxplot without outliers
-  #geom_jitter(width = 0.2) +  # Add jittered points
-  #geom_line(aes(group = associated_gene.x), color = "gray", size = 0.4) +  # Connect dots from the same gene
-  scale_color_manual(values = c("#00AFBB", "#E7B800", "#FC4E07")) +  # Optional palette
-  #stat_compare_means(paired = TRUE) +  # Add paired statistical comparison
-  theme_classic() +  # Clean theme
-  labs(x = "Structural Category", y = "Value", color = "Structural Category") +  stat_compare_means(method = "wilcox.test", label = "p.signif", 
-                     comparisons = list(c("novel_in_catalog", "novel_not_in_catalog"), 
-     c("full-splice_match", "novel_in_catalog"), 
-     c("full-splice_match", "novel_not_in_catalog")))
-```
 
 ## Supplementary 2A
 ```{r calculatePercentages_ccRCCs_Sub}
@@ -1074,8 +1055,24 @@ theme_classic() +
     labs(x = "Isoform Subcategories", y = "Percentage (%)") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-
 isoform_annotations_ccRCC_2_filtered_w_CellNumber[isoform_annotations_ccRCC_2_filtered_w_CellNumber$isoform %in% ORF_ccRCC2[ORF_ccRCC2$ORFType %in% c('complete (+)', 'complete (-)'), 'PB.id'] & isoform_annotations_ccRCC_2_filtered_w_CellNumber$associated_gene.x == 'NNMT' & isoform_annotations_ccRCC_2_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'),] # 8 NNMT novel isoform 
 
 ORF_ccRCC2_seurat_iupred_Novel[ORF_ccRCC2_seurat_iupred_Novel$isoform %in% isoform_annotations_ccRCC_2_filtered_w_CellNumber[isoform_annotations_ccRCC_2_filtered_w_CellNumber$isoform %in% ORF_ccRCC2[ORF_ccRCC2$ORFType %in% c('complete (+)', 'complete (-)'), 'PB.id'] & isoform_annotations_ccRCC_2_filtered_w_CellNumber$associated_gene.x == 'NNMT' & isoform_annotations_ccRCC_2_filtered_w_CellNumber$structural_category %in% c('novel_in_catalog', 'novel_not_in_catalog'), 'isoform'],]
+
+## UMI counts across Disordered and Ordered Categories
+
+## Selecting an Example Case
+```{r Disordered_Ordered}
+max_average <- ORF_iupred_subNNIC_NIC %>%
+    dplyr::select(associated_gene.x, subcategory, structural_category, isoform, Disordered, Ordered) %>%
+    dplyr::group_by(associated_gene.x, subcategory, structural_category) %>%
+    dplyr::summarise(averageOrdered = mean(Ordered), .groups = 'drop') %>%
+    dplyr::group_by(associated_gene.x) %>%
+    dplyr::filter(averageOrdered == min(averageOrdered)) %>%
+    dplyr::ungroup()
+
+```
+
+
+
 
